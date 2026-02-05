@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="permission_handler_permission_camera">
+        android.permission.CAMERA
+    </string>
+
+    <string name="permission_handler_permission_read_external_storage">
+        android.permission.READ_EXTERNAL_STORAGE
+    </string>
+
+    <string name="permission_handler_permission_read_media_images">
+        android.permission.READ_MEDIA_IMAGES
+    </string>
+</resources>

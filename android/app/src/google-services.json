@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "165313930807",
+    "project_id": "drch-app-7b800",
+    "storage_bucket": "drch-app-7b800.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165313930807:android:82e6ebc782a1e2a4fe01b2",
+        "android_client_info": {
+          "package_name": "com.example.untitled"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAuQlYWSJp8JwqgSmv7dZWPPEY0RFZ1Qdc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

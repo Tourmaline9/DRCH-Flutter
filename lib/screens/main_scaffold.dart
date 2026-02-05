@@ -1,0 +1,122 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import 'home_screen.dart';
+import 'nearby_screen.dart';
+import 'report_screen.dart';
+import 'verify_screen.dart';
+
+class MainScaffold extends StatefulWidget {
+  const MainScaffold({super.key});
+
+  @override
+  State<MainScaffold> createState() => _MainScaffoldState();
+}
+
+class _MainScaffoldState extends State<MainScaffold> {
+  BottomNavigationBarItem _navItem(
+      IconData icon,
+      String label,
+      int index,
+      ) {
+    final bool isSelected = _index == index;
+
+    return BottomNavigationBarItem(
+      label: label,
+      icon: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+        transform: Matrix4.identity()
+          ..scale(isSelected ? 1.2 : 1.0),
+        child: Icon(icon),
+      ),
+    );
+  }
+
+  int _index = 0;
+
+  final _screens = const [
+    HomeScreen(),
+    NearbyScreen(),
+    ReportScreen(),
+    VerifyScreen(),
+  ];
+
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFFD32F2F), // deep red
+                Color(0xFFB71C1C),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: const Text(
+          "DRCH",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+          ),
+        ],
+      ),
+
+
+      body: IndexedStack(
+        index: _index,
+        children: _screens,
+      ),
+
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: Colors.white,
+          type: BottomNavigationBarType.fixed,
+          currentIndex: _index,
+          selectedItemColor: Colors.red,
+          unselectedItemColor: Colors.grey,
+          onTap: (i) {
+            setState(() {
+              _index = i;
+            });
+          },
+
+          items: [
+            _navItem(Icons.home, "Home", 0),
+            _navItem(Icons.map, "Nearby", 1),
+            _navItem(Icons.add_circle, "Report", 2),
+            _navItem(Icons.verified, "Verify", 3),
+          ],
+        ),
+      ),
+
+
+
+    );
+  }
+}
