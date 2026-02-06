@@ -12,14 +12,28 @@ import 'map_screen.dart';
 class VerifyScreen extends StatelessWidget {
   const VerifyScreen({super.key});
 
-  // 🔥 Severity color helper
+  // 🔴 Severity color helper
   Color _severityColor(int s) {
     if (s >= 4) return Colors.red;
     if (s >= 2) return Colors.orange;
     return Colors.green;
   }
 
-  // 🔐 200m distance check
+  // 🕒 Date & Time formatter
+  String _formatDateTime(dynamic timestamp) {
+    if (timestamp == null) return "";
+
+    final date =
+    DateTime.fromMillisecondsSinceEpoch(timestamp);
+
+    return "${date.day.toString().padLeft(2, '0')}/"
+        "${date.month.toString().padLeft(2, '0')}/"
+        "${date.year}  "
+        "${date.hour.toString().padLeft(2, '0')}:"
+        "${date.minute.toString().padLeft(2, '0')}";
+  }
+
+  // 📍 200m distance check
   Future<bool> _isUserWithin200m(
       double reportLat,
       double reportLng,
@@ -39,7 +53,8 @@ class VerifyScreen extends StatelessWidget {
       return false;
     }
 
-    final position = await Geolocator.getCurrentPosition(
+    final position =
+    await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
 
@@ -60,12 +75,13 @@ class VerifyScreen extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection("reports")
+          .orderBy("createdAt", descending: true)
           .snapshots(),
 
       builder: (context, snapshot) {
-
         // 🔄 LOADING
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
           return const LoadingState(
             message: "Loading reports to verify...",
           );
@@ -82,13 +98,15 @@ class VerifyScreen extends StatelessWidget {
           return const EmptyState(
             icon: Icons.error_outline,
             title: "No data",
-            subtitle: "Unable to load reports at the moment.",
+            subtitle: "Unable to load reports.",
           );
         }
 
         // 🔥 Only UNVERIFIED reports
-        final docs = snapshot.data!.docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
+        final docs =
+        snapshot.data!.docs.where((doc) {
+          final data =
+          doc.data() as Map<String, dynamic>;
           return data["verified"] == false;
         }).toList();
 
@@ -97,17 +115,17 @@ class VerifyScreen extends StatelessWidget {
             icon: Icons.verified_outlined,
             title: "No reports to verify",
             subtitle:
-            "All nearby incidents have already been verified.",
+            "All nearby incidents are verified.",
           );
         }
 
         return ListView(
           children: [
-
-            // ================= HEADER =================
+            // ===== HEADER =====
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+              padding:
+              const EdgeInsets.fromLTRB(16, 20, 16, 24),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
@@ -123,7 +141,8 @@ class VerifyScreen extends StatelessWidget {
                 ),
               ),
               child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
                 children: [
                   Text(
                     "Verify Reports",
@@ -147,10 +166,12 @@ class VerifyScreen extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // ================= CARDS =================
+            // ===== CARDS =====
             ...docs.map((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              final votes = (data["votes"] as List?) ?? [];
+              final data =
+              doc.data() as Map<String, dynamic>;
+              final votes =
+                  (data["votes"] as List?) ?? [];
 
               return Card(
                 elevation: 2,
@@ -162,22 +183,22 @@ class VerifyScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),
                 ),
-
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                  CrossAxisAlignment.start,
                   children: [
-
-                    // ---------- HEADER ----------
+                    // HEADER
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                      padding:
+                      const EdgeInsets.fromLTRB(12, 12, 12, 8),
                       child: Row(
                         children: [
-
                           Container(
                             width: 44,
                             height: 44,
                             decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.12),
+                              color: Colors.orange
+                                  .withOpacity(0.12),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -190,34 +211,55 @@ class VerifyScreen extends StatelessWidget {
                           const SizedBox(width: 12),
 
                           Expanded(
-                            child: Text(
-                              data["type"] ?? "Unknown",
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                            child: Column(
+                              crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  data["type"] ??
+                                      "Unknown",
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                    fontWeight:
+                                    FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _formatDateTime(
+                                      data["createdAt"]),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
 
                           Container(
-                            padding: const EdgeInsets.symmetric(
+                            padding:
+                            const EdgeInsets.symmetric(
                               horizontal: 10,
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
                               color: _severityColor(
-                                (data["severity"] ?? 1).toInt(),
+                                (data["severity"] ?? 1)
+                                    .toInt(),
                               ),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius:
+                              BorderRadius.circular(20),
                             ),
                             child: Text(
                               "S${(data["severity"] ?? 1).toInt()}",
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                                fontWeight:
+                                FontWeight.bold,
                               ),
                             ),
                           ),
@@ -225,27 +267,32 @@ class VerifyScreen extends StatelessWidget {
                       ),
                     ),
 
-                    // ---------- IMAGE ----------
+                    // IMAGE
                     if (data["images"] != null &&
                         data["images"].isNotEmpty)
                       ClipRRect(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(14),
-                          topRight: Radius.circular(14),
+                        borderRadius:
+                        const BorderRadius.only(
+                          topLeft:
+                          Radius.circular(14),
+                          topRight:
+                          Radius.circular(14),
                         ),
                         child: Image.file(
                           File(data["images"][0]),
                           height: 220,
                           width: double.infinity,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
+                          errorBuilder:
+                              (_, __, ___) =>
                           const SizedBox(),
                         ),
                       ),
 
-                    // ---------- DESCRIPTION ----------
+                    // DESCRIPTION
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                      padding:
+                      const EdgeInsets.fromLTRB(12, 12, 12, 6),
                       child: Text(
                         data["description"] ?? "",
                         style: Theme.of(context)
@@ -257,9 +304,10 @@ class VerifyScreen extends StatelessWidget {
 
                     const Divider(height: 1),
 
-                    // ---------- ACTIONS ----------
+                    // ACTIONS
                     Padding(
-                      padding: const EdgeInsets.symmetric(
+                      padding:
+                      const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 6,
                       ),
@@ -267,53 +315,31 @@ class VerifyScreen extends StatelessWidget {
                         mainAxisAlignment:
                         MainAxisAlignment.spaceBetween,
                         children: [
-
                           TextButton.icon(
-                            icon: const Icon(Icons.map_outlined),
-                            label: const Text("View location"),
+                            icon: const Icon(
+                                Icons.map_outlined),
+                            label:
+                            const Text("View location"),
                             onPressed: () {
-                              if (data["lat"] == null ||
-                                  data["lng"] == null) {
-                                ScaffoldMessenger.of(context)
-                                    .showSnackBar(
-                                  const SnackBar(
-                                    content:
-                                    Text("Location not available"),
-                                  ),
-                                );
-                                return;
-                              }
-
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => MapScreen(
-                                    lat: data["lat"],
-                                    lng: data["lng"],
-                                  ),
+                                  builder: (_) =>
+                                      MapScreen(
+                                        lat: data["lat"],
+                                        lng: data["lng"],
+                                      ),
                                 ),
                               );
                             },
                           ),
 
                           ElevatedButton.icon(
-                            icon: const Icon(Icons.check),
-                            label: const Text("Verify"),
+                            icon:
+                            const Icon(Icons.check),
+                            label:
+                            const Text("Verify"),
                             onPressed: () async {
-
-                              if (data["lat"] == null ||
-                                  data["lng"] == null) {
-                                ScaffoldMessenger.of(context)
-                                    .showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      "Location not available",
-                                    ),
-                                  ),
-                                );
-                                return;
-                              }
-
                               final isNearby =
                               await _isUserWithin200m(
                                 data["lat"],
@@ -321,11 +347,12 @@ class VerifyScreen extends StatelessWidget {
                               );
 
                               if (!isNearby) {
-                                ScaffoldMessenger.of(context)
+                                ScaffoldMessenger.of(
+                                    context)
                                     .showSnackBar(
                                   const SnackBar(
                                     content: Text(
-                                      "You must be within 150 meters to verify",
+                                      "You must be within 200 meters to verify",
                                     ),
                                   ),
                                 );
@@ -333,20 +360,25 @@ class VerifyScreen extends StatelessWidget {
                               }
 
                               try {
-                                await service.vote(doc.id);
+                                await service.vote(
+                                    doc.id);
 
-                                ScaffoldMessenger.of(context)
+                                ScaffoldMessenger.of(
+                                    context)
                                     .showSnackBar(
                                   const SnackBar(
-                                    content:
-                                    Text("Verification added"),
+                                    content: Text(
+                                      "Verification added",
+                                    ),
                                   ),
                                 );
                               } catch (e) {
-                                ScaffoldMessenger.of(context)
+                                ScaffoldMessenger.of(
+                                    context)
                                     .showSnackBar(
                                   SnackBar(
-                                    content: Text(e.toString()),
+                                    content: Text(
+                                        e.toString()),
                                   ),
                                 );
                               }
@@ -356,7 +388,7 @@ class VerifyScreen extends StatelessWidget {
                       ),
                     ),
 
-                    // ---------- FOOTER ----------
+                    // FOOTER
                     Padding(
                       padding: const EdgeInsets.only(
                         left: 12,

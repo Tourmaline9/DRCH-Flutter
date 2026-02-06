@@ -17,11 +17,22 @@ class HomeScreen extends StatelessWidget {
     return Colors.green;
   }
 
+  // 🕒 Date-time formatter
+  String _formatDateTime(int millis) {
+    final d = DateTime.fromMillisecondsSinceEpoch(millis);
+    return "${d.day.toString().padLeft(2, '0')}-"
+        "${d.month.toString().padLeft(2, '0')}-"
+        "${d.year} • "
+        "${d.hour.toString().padLeft(2, '0')}:"
+        "${d.minute.toString().padLeft(2, '0')}";
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection("reports")
+          .orderBy("createdAt", descending: true)
           .snapshots(),
 
       builder: (context, snapshot) {
@@ -49,7 +60,7 @@ class HomeScreen extends StatelessWidget {
           );
         }
 
-        // 🔥 Filter only verified reports
+        // 🔥 Filter verified reports only
         final docs = snapshot.data!.docs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
           return data.containsKey("verified") &&
@@ -114,7 +125,7 @@ class HomeScreen extends StatelessWidget {
             ...docs.map((doc) {
               final data = doc.data() as Map<String, dynamic>;
 
-             return Card(
+              return Card(
                 elevation: 2,
                 shadowColor: Colors.black26,
                 margin: const EdgeInsets.symmetric(
@@ -129,13 +140,12 @@ class HomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
 
-                    // ================= HEADER =================
+                    // ---------- HEADER ----------
                     Padding(
                       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                       child: Row(
                         children: [
 
-                          // 🔴 ICON BADGE
                           Container(
                             width: 44,
                             height: 44,
@@ -152,7 +162,6 @@ class HomeScreen extends StatelessWidget {
 
                           const SizedBox(width: 12),
 
-                          // TYPE TEXT
                           Expanded(
                             child: Text(
                               data["type"] ?? "Unknown",
@@ -165,7 +174,6 @@ class HomeScreen extends StatelessWidget {
                             ),
                           ),
 
-                          // SEVERITY CHIP
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
@@ -190,8 +198,9 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
 
-                    // ================= IMAGE =================
-                    if (data["images"] != null && data["images"].isNotEmpty)
+                    // ---------- IMAGE ----------
+                    if (data["images"] != null &&
+                        data["images"].isNotEmpty)
                       ClipRRect(
                         borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(14),
@@ -206,9 +215,9 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
 
-                    // ================= DESCRIPTION =================
+                    // ---------- DESCRIPTION ----------
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
                       child: Text(
                         data["description"] ?? "",
                         style: Theme.of(context)
@@ -218,9 +227,21 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
 
+                    // ---------- DATE & TIME ----------
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                      child: Text(
+                        "Reported on ${_formatDateTime(data["createdAt"])}",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ),
+
                     const Divider(height: 1),
 
-                    // ================= ACTIONS =================
+                    // ---------- ACTIONS ----------
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -230,15 +251,16 @@ class HomeScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
 
-                          // 📍 MAP
                           TextButton.icon(
                             icon: const Icon(Icons.map_outlined),
                             label: const Text("View location"),
                             onPressed: () {
-                              if (data["lat"] == null || data["lng"] == null) {
+                              if (data["lat"] == null ||
+                                  data["lng"] == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text("Location not available"),
+                                    content:
+                                    Text("Location not available"),
                                   ),
                                 );
                                 return;
@@ -256,7 +278,6 @@ class HomeScreen extends StatelessWidget {
                             },
                           ),
 
-                          // ✅ VERIFIED ICON (HOME)
                           const Icon(
                             Icons.verified,
                             color: Colors.green,
@@ -267,7 +288,6 @@ class HomeScreen extends StatelessWidget {
                   ],
                 ),
               );
-
             }).toList(),
           ],
         );
