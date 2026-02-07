@@ -316,23 +316,30 @@ class VerifyScreen extends StatelessWidget {
                         MainAxisAlignment.spaceBetween,
                         children: [
                           TextButton.icon(
-                            icon: const Icon(
-                                Icons.map_outlined),
-                            label:
-                            const Text("View location"),
+                            icon: const Icon(Icons.map_outlined),
+                            label: const Text("View location"),
                             onPressed: () {
+                              if (data["lat"] == null || data["lng"] == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Location not available"),
+                                  ),
+                                );
+                                return;
+                              }
+
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => IncidentDetailsScreen(
-                                    reportId: doc.id,
-                                    reportData: data,
+                                  builder: (_) => MapScreen(
+                                    lat: data["lat"],
+                                    lng: data["lng"],
                                   ),
                                 ),
                               );
-
                             },
                           ),
+
 
                           ElevatedButton.icon(
                             icon:

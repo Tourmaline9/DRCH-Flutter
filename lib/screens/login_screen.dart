@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_services.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -9,13 +10,14 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _nameController = TextEditingController(); // 🔥 NEW
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   final _authService = AuthService();
 
   bool _loading = false;
-  bool _isSignup = false; // 🔥 toggle mode
+  bool _isSignup = false;
 
   Future<void> _submit() async {
     if (_passwordController.text.length < 6) {
@@ -23,14 +25,29 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    if (_isSignup && _nameController.text.trim().isEmpty) {
+      _showError("Please enter your name");
+      return;
+    }
+
     setState(() => _loading = true);
 
     try {
       if (_isSignup) {
-        await _authService.signUp(
+        final user = await _authService.signUp(
           _emailController.text.trim(),
           _passwordController.text.trim(),
         );
+
+        // 🔥 SAVE USER PROFILE (IMPORTANT)
+        await FirebaseFirestore.instance
+            .collection("users")
+            .doc(user!.uid)
+            .set({
+          "name": _nameController.text.trim(),
+          "email": user.email,
+          "createdAt": DateTime.now().millisecondsSinceEpoch,
+        });
       } else {
         await _authService.login(
           _emailController.text.trim(),
@@ -72,6 +89,18 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
 
             const SizedBox(height: 24),
+
+            // 🔥 NAME FIELD (SIGNUP ONLY)
+            if (_isSignup) ...[
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: "Full Name",
+                  prefixIcon: Icon(Icons.person),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
 
             TextField(
               controller: _emailController,

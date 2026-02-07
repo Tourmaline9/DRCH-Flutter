@@ -45,16 +45,13 @@ class _IncidentDetailsScreenState
   }
 
   // ================= DISTANCE CHECK =================
-  Future<bool> _isWithin200m(
-      double reportLat,
-      double reportLng,
-      ) async {
+  Future<bool> _isWithin200m(double lat, double lng) async {
     final pos = await Geolocator.getCurrentPosition();
     final distance = Geolocator.distanceBetween(
       pos.latitude,
       pos.longitude,
-      reportLat,
-      reportLng,
+      lat,
+      lng,
     );
     return distance <= 200;
   }
@@ -66,9 +63,13 @@ class _IncidentDetailsScreenState
     final lat = widget.reportData["lat"];
     final lng = widget.reportData["lng"];
 
-    final nearby = await _isWithin200m(lat, lng);
+    if (lat == null || lng == null) {
+      _show("Location not available");
+      setState(() => _checking = false);
+      return;
+    }
 
-    if (!nearby) {
+    if (!await _isWithin200m(lat, lng)) {
       _show("You must be within 200 meters");
       setState(() => _checking = false);
       return;
@@ -107,6 +108,7 @@ class _IncidentDetailsScreenState
         .add({
       "title": _requirementController.text.trim(),
       "createdBy": FirebaseAuth.instance.currentUser!.uid,
+      "fulfilled": false,
       "createdAt": DateTime.now().millisecondsSinceEpoch,
     });
 
@@ -116,49 +118,58 @@ class _IncidentDetailsScreenState
   // ================= CONTRIBUTION DIALOG =================
   Future<void> _showContributionDialog(String requirementId) async {
     final controller = TextEditingController();
+    final user = FirebaseAuth.instance.currentUser!;
+
+    final userDoc = await FirebaseFirestore.instance
+        .collection("users")
+        .doc(user.uid)
+        .get();
+
+    final userName =
+        userDoc.data()?["name"] ?? user.email ?? "Unknown user";
 
     await showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Contribute"),
-          content: TextField(
-            controller: controller,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              hintText: "Describe what you can contribute",
-            ),
+      builder: (_) => AlertDialog(
+        title: const Text("Contribute"),
+        content: TextField(
+          controller: controller,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            hintText: "Describe what you can contribute",
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (controller.text.trim().isEmpty) return;
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (controller.text.trim().isEmpty) return;
 
-                await FirebaseFirestore.instance
-                    .collection("reports")
-                    .doc(widget.reportId)
-                    .collection("requirements")
-                    .doc(requirementId)
-                    .collection("contributions")
-                    .add({
-                  "uid": FirebaseAuth.instance.currentUser!.uid,
-                  "message": controller.text.trim(),
-                  "createdAt":
-                  DateTime.now().millisecondsSinceEpoch,
-                });
+              await FirebaseFirestore.instance
+                  .collection("reports")
+                  .doc(widget.reportId)
+                  .collection("requirements")
+                  .doc(requirementId)
+                  .collection("contributions")
+                  .add({
+                "uid": user.uid,
+                "name": userName,
+                "message": controller.text.trim(),
+                "createdAt":
+                DateTime.now().millisecondsSinceEpoch,
+                "upvotes": [],
+              });
 
-                Navigator.pop(context);
-                _show("Contribution added");
-              },
-              child: const Text("Submit"),
-            ),
-          ],
-        );
-      },
+              Navigator.pop(context);
+              _show("Contribution added");
+            },
+            child: const Text("Submit"),
+          ),
+        ],
+      ),
     );
   }
 
@@ -172,22 +183,18 @@ class _IncidentDetailsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Incident Details")),
-
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-
           Text(
             widget.reportData["type"] ?? "Incident",
             style: Theme.of(context).textTheme.headlineSmall,
           ),
-
           const SizedBox(height: 8),
           Text(widget.reportData["description"] ?? ""),
-
           const SizedBox(height: 24),
 
-          // ================= PRESENCE =================
+          // ===== PRESENCE =====
           Card(
             child: ListTile(
               leading: const Icon(Icons.people),
@@ -195,24 +202,19 @@ class _IncidentDetailsScreenState
               trailing: ElevatedButton(
                 onPressed:
                 _isPresent || _checking ? null : _markPresence,
-                child: Text(
-                    _isPresent ? "You’re here" : "I’m here"),
+                child:
+                Text(_isPresent ? "You’re here" : "I’m here"),
               ),
             ),
           ),
 
           const SizedBox(height: 28),
 
-          // ================= REQUIREMENTS =================
+          // ===== REQUIREMENTS =====
           const Text(
             "Requirements",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-
-          const SizedBox(height: 8),
 
           if (_isPresent) ...[
             TextField(
@@ -225,15 +227,10 @@ class _IncidentDetailsScreenState
               onPressed: _addRequirement,
               child: const Text("Add Requirement"),
             ),
-          ] else
-            const Text(
-              "Only people on site can add requirements",
-              style: TextStyle(color: Colors.grey),
-            ),
+          ],
 
           const SizedBox(height: 16),
 
-          // ================= REQUIREMENT LIST =================
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection("reports")
@@ -252,21 +249,20 @@ class _IncidentDetailsScreenState
 
               return Column(
                 children: snapshot.data!.docs.map((req) {
-                  final r =
-                  req.data() as Map<String, dynamic>;
+                  final r = req.data() as Map<String, dynamic>;
+                  final fulfilled = r["fulfilled"] ?? false;
 
                   return Card(
                     margin: const EdgeInsets.symmetric(vertical: 8),
                     child: Padding(
                       padding: const EdgeInsets.all(12),
-
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-
-                          // ===== Requirement title =====
+                          // ===== TITLE + ACTIONS =====
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
                                 r["title"],
@@ -275,17 +271,42 @@ class _IncidentDetailsScreenState
                                   fontSize: 16,
                                 ),
                               ),
-                              ElevatedButton(
-                                onPressed: () =>
-                                    _showContributionDialog(req.id),
-                                child: const Text("Contribute"),
-                              ),
+                              if (!fulfilled)
+                                ElevatedButton(
+                                  onPressed: () =>
+                                      _showContributionDialog(req.id),
+                                  child: const Text("Contribute"),
+                                )
+                              else
+                                const Chip(
+                                  label: Text("Fulfilled"),
+                                  backgroundColor: Colors.green,
+                                  labelStyle:
+                                  TextStyle(color: Colors.white),
+                                ),
                             ],
                           ),
 
+                          // ===== MARK FULFILLED =====
+                          if (_isPresent && !fulfilled)
+                            TextButton.icon(
+
+                              label: const Text("Mark Fulfilled"),
+                              onPressed: () async {
+                                await FirebaseFirestore.instance
+                                    .collection("reports")
+                                    .doc(widget.reportId)
+                                    .collection("requirements")
+                                    .doc(req.id)
+                                    .update({"fulfilled": true});
+
+                                _show("Requirement marked fulfilled");
+                              },
+                            ),
+
                           const SizedBox(height: 8),
 
-                          // ===== Contributions list =====
+                          // ===== CONTRIBUTIONS =====
                           StreamBuilder<QuerySnapshot>(
                             stream: FirebaseFirestore.instance
                                 .collection("reports")
@@ -295,23 +316,26 @@ class _IncidentDetailsScreenState
                                 .collection("contributions")
                                 .orderBy("createdAt", descending: true)
                                 .snapshots(),
-
-                            builder: (context, snapshot) {
-                              if (!snapshot.hasData ||
-                                  snapshot.data!.docs.isEmpty) {
+                            builder: (context, snap) {
+                              if (!snap.hasData ||
+                                  snap.data!.docs.isEmpty) {
                                 return const Text(
                                   "No contributions yet",
                                   style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 13,
-                                  ),
+                                      color: Colors.grey, fontSize: 13),
                                 );
                               }
 
                               return Column(
-                                children: snapshot.data!.docs.map((c) {
+                                children: snap.data!.docs.map((c) {
                                   final d =
                                   c.data() as Map<String, dynamic>;
+                                  final uid = FirebaseAuth
+                                      .instance.currentUser!.uid;
+                                  final upvotes =
+                                      (d["upvotes"] as List?) ?? [];
+                                  final hasUpvoted =
+                                  upvotes.contains(uid);
 
                                   return Container(
                                     margin:
@@ -324,22 +348,65 @@ class _IncidentDetailsScreenState
                                       BorderRadius.circular(12),
                                     ),
                                     child: Row(
-                                      crossAxisAlignment:
-                                      CrossAxisAlignment.start,
                                       children: [
-                                        const Icon(
-                                          Icons.volunteer_activism,
-                                          color: Colors.green,
-                                          size: 18,
-                                        ),
-                                        const SizedBox(width: 8),
                                         Expanded(
-                                          child: Text(
-                                            d["message"] ?? "",
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                            ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                d["name"] ?? "Helper",
+                                                style: const TextStyle(
+                                                  fontWeight:
+                                                  FontWeight.bold,
+                                                ),
+                                              ),
+                                              Text(d["message"] ?? ""),
+                                            ],
                                           ),
+                                        ),
+                                        Column(
+                                          children: [
+                                            IconButton(
+                                              icon: Icon(
+                                                hasUpvoted
+                                                    ? Icons.thumb_up
+                                                    : Icons
+                                                    .thumb_up_outlined,
+                                                color: hasUpvoted
+                                                    ? Colors.blue
+                                                    : Colors.grey,
+                                              ),
+                                              onPressed: () async {
+                                                final ref =
+                                                FirebaseFirestore
+                                                    .instance
+                                                    .collection("reports")
+                                                    .doc(widget.reportId)
+                                                    .collection(
+                                                    "requirements")
+                                                    .doc(req.id)
+                                                    .collection(
+                                                    "contributions")
+                                                    .doc(c.id);
+
+                                                if (hasUpvoted) {
+                                                  await ref.update({
+                                                    "upvotes":
+                                                    FieldValue.arrayRemove(
+                                                        [uid]),
+                                                  });
+                                                } else {
+                                                  await ref.update({
+                                                    "upvotes":
+                                                    FieldValue.arrayUnion(
+                                                        [uid]),
+                                                  });
+                                                }
+                                              },
+                                            ),
+                                            Text(upvotes.length.toString()),
+                                          ],
                                         ),
                                       ],
                                     ),
@@ -352,7 +419,6 @@ class _IncidentDetailsScreenState
                       ),
                     ),
                   );
-
                 }).toList(),
               );
             },
