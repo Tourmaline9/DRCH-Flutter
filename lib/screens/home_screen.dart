@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../widgets/loading_state.dart';
 import '../widgets/empty_state.dart';
-import 'map_screen.dart';
+import 'incident_details_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -40,7 +40,7 @@ class HomeScreen extends StatelessWidget {
         // 🔄 Loading
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const LoadingState(
-            message: "Loading verified reports...",
+            message: "Loading verified incidents...",
           );
         }
 
@@ -55,23 +55,22 @@ class HomeScreen extends StatelessWidget {
         if (!snapshot.hasData) {
           return const EmptyState(
             icon: Icons.inbox,
-            title: "No verified reports",
-            subtitle: "Once reports are verified, they will appear here.",
+            title: "No verified incidents",
+            subtitle: "Once incidents are verified, they will appear here.",
           );
         }
 
-        // 🔥 Filter verified reports only
+        // 🔥 Only VERIFIED reports
         final docs = snapshot.data!.docs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
-          return data.containsKey("verified") &&
-              data["verified"] == true;
+          return data["verified"] == true;
         }).toList();
 
         if (docs.isEmpty) {
           return const EmptyState(
             icon: Icons.verified_outlined,
-            title: "No verified reports yet",
-            subtitle: "Verified incidents will appear here.",
+            title: "No verified incidents yet",
+            subtitle: "Verified reports will appear here.",
           );
         }
 
@@ -211,7 +210,8 @@ class HomeScreen extends StatelessWidget {
                           height: 220,
                           width: double.infinity,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const SizedBox(),
+                          errorBuilder: (_, __, ___) =>
+                          const SizedBox(),
                         ),
                       ),
 
@@ -227,7 +227,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
 
-                    // ---------- DATE & TIME ----------
+                    // ---------- DATE ----------
                     Padding(
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
                       child: Text(
@@ -241,38 +241,29 @@ class HomeScreen extends StatelessWidget {
 
                     const Divider(height: 1),
 
-                    // ---------- ACTIONS ----------
+                    // ---------- ACTION ----------
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 6,
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment:
+                        MainAxisAlignment.spaceBetween,
                         children: [
 
                           TextButton.icon(
-                            icon: const Icon(Icons.map_outlined),
-                            label: const Text("View location"),
+                            icon: const Icon(Icons.forum_outlined),
+                            label: const Text("View details"),
                             onPressed: () {
-                              if (data["lat"] == null ||
-                                  data["lng"] == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content:
-                                    Text("Location not available"),
-                                  ),
-                                );
-                                return;
-                              }
-
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => MapScreen(
-                                    lat: data["lat"],
-                                    lng: data["lng"],
-                                  ),
+                                  builder: (_) =>
+                                      IncidentDetailsScreen(
+                                        reportId: doc.id,
+                                        reportData: data,
+                                      ),
                                 ),
                               );
                             },

@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
-
+import 'incident_details_screen.dart';
 import '../services/report_service.dart';
 import '../widgets/loading_state.dart';
 import '../widgets/empty_state.dart';
@@ -324,13 +324,13 @@ class VerifyScreen extends StatelessWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      MapScreen(
-                                        lat: data["lat"],
-                                        lng: data["lng"],
-                                      ),
+                                  builder: (_) => IncidentDetailsScreen(
+                                    reportId: doc.id,
+                                    reportData: data,
+                                  ),
                                 ),
                               );
+
                             },
                           ),
 
