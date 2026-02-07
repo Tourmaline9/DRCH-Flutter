@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/loading_state.dart';
 import '../widgets/empty_state.dart';
 import 'incident_details_screen.dart';
+import 'map_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -17,7 +18,7 @@ class HomeScreen extends StatelessWidget {
     return Colors.green;
   }
 
-  // 🕒 Date-time formatter
+  // 🕒 Date & time formatter
   String _formatDateTime(int millis) {
     final d = DateTime.fromMillisecondsSinceEpoch(millis);
     return "${d.day.toString().padLeft(2, '0')}-"
@@ -36,22 +37,21 @@ class HomeScreen extends StatelessWidget {
           .snapshots(),
 
       builder: (context, snapshot) {
-
-        // 🔄 Loading
+        // 🔄 LOADING
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const LoadingState(
             message: "Loading verified incidents...",
           );
         }
 
-        // ❌ Error
+        // ❌ ERROR
         if (snapshot.hasError) {
           return Center(
             child: Text(snapshot.error.toString()),
           );
         }
 
-        // 📭 No data
+        // 📭 NO DATA
         if (!snapshot.hasData) {
           return const EmptyState(
             icon: Icons.inbox,
@@ -60,7 +60,7 @@ class HomeScreen extends StatelessWidget {
           );
         }
 
-        // 🔥 Only VERIFIED reports
+        // 🔥 ONLY VERIFIED REPORTS
         final docs = snapshot.data!.docs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
           return data["verified"] == true;
@@ -120,7 +120,7 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // ================= CARDS =================
+            // ================= INCIDENT CARDS =================
             ...docs.map((doc) {
               final data = doc.data() as Map<String, dynamic>;
 
@@ -162,14 +162,27 @@ class HomeScreen extends StatelessWidget {
                           const SizedBox(width: 12),
 
                           Expanded(
-                            child: Text(
-                              data["type"] ?? "Unknown",
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  data["type"] ?? "Unknown",
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _formatDateTime(data["createdAt"]),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
 
@@ -227,21 +240,9 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
 
-                    // ---------- DATE ----------
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                      child: Text(
-                        "Reported on ${_formatDateTime(data["createdAt"])}",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ),
-
                     const Divider(height: 1),
 
-                    // ---------- ACTION ----------
+                    // ---------- ACTIONS ----------
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -252,23 +253,62 @@ class HomeScreen extends StatelessWidget {
                         MainAxisAlignment.spaceBetween,
                         children: [
 
-                          TextButton.icon(
-                            icon: const Icon(Icons.forum_outlined),
-                            label: const Text("View details"),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      IncidentDetailsScreen(
-                                        reportId: doc.id,
-                                        reportData: data,
+                          Row(
+                            children: [
+
+                              // 📍 LOCATION
+                              TextButton.icon(
+                                icon: const Icon(Icons.map_outlined),
+                                label: const Text("Location"),
+                                onPressed: () {
+                                  if (data["lat"] == null ||
+                                      data["lng"] == null) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          "Location not available",
+                                        ),
                                       ),
-                                ),
-                              );
-                            },
+                                    );
+                                    return;
+                                  }
+
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => MapScreen(
+                                        lat: data["lat"],
+                                        lng: data["lng"],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+
+                              const SizedBox(width: 6),
+
+                              // 💬 DETAILS
+                              TextButton.icon(
+                                icon: const Icon(Icons.forum_outlined),
+                                label: const Text("View details"),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          IncidentDetailsScreen(
+                                            reportId: doc.id,
+                                            reportData: data,
+                                          ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
 
+                          // ✅ VERIFIED
                           const Icon(
                             Icons.verified,
                             color: Colors.green,
