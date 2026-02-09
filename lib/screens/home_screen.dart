@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
-
+import 'natural_map_screen.dart';
 import '../widgets/loading_state.dart';
 import '../widgets/empty_state.dart';
 import 'incident_details_screen.dart';
@@ -244,7 +244,7 @@ class HomeScreen extends StatelessWidget {
                                         ),
                                       ),
                                     );
-                                  },
+                                   },
                                 ),
                               ],
                             ),
@@ -260,40 +260,65 @@ class HomeScreen extends StatelessWidget {
             // ================= TAB 2: NATURAL (INDIA) =================
             FutureBuilder<List<Map<String, dynamic>>>(
               future: _fetchIndiaEarthquakes(),
-
               builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const LoadingState(
-                    message: "Fetching India disasters...",
-                  );
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
                 }
 
-                if (snapshot.data!.isEmpty) {
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return const EmptyState(
                     icon: Icons.public,
-                    title: "No active disasters in India",
-                    subtitle: "Live data updates automatically",
+                    title: "No recent disasters",
+                    subtitle: "No natural disasters in India this week",
                   );
                 }
 
-                return ListView(
-                  padding: const EdgeInsets.all(12),
-                  children: snapshot.data!.map((e) {
-                    final p = e["properties"];
+                final data = snapshot.data!;
 
-                    return Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: ListTile(
-                        leading: const Icon(Icons.public, color: Colors.blue),
-                        title: Text(p["place"] ?? "Unknown location"),
-                        subtitle: Text(
-                          "Magnitude: ${p["mag"]} • ${DateTime.fromMillisecondsSinceEpoch(p["time"]).toLocal()}",
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.map),
+                          label: const Text("View on Map"),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => NaturalMapScreen(
+                                  earthquakes: data,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
-                    );
-                  }).toList(),
+                    ),
+
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: data.length,
+                        itemBuilder: (context, i) {
+                          final p = data[i]["properties"];
+
+                          return Card(
+                            margin:
+                            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            child: ListTile(
+                              leading: const Icon(Icons.public, color: Colors.blue),
+                              title: Text(p["place"] ?? "Unknown location"),
+                              subtitle: Text(
+                                "Magnitude: ${p["mag"]}",
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 );
               },
             ),

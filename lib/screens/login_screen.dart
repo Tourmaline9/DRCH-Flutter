@@ -143,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextButton(
                     onPressed: () {
                       setState(() {
-                        _isSignup = !_isSignup;
+                         _isSignup = !_isSignup;
                       });
                     },
                     child: Text(
