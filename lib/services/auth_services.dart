@@ -31,7 +31,7 @@ class AuthService {
 
       final user = cred.user;
 
-      // 🔔 Save FCM token AFTER successful login
+      // Save FCM token AFTER successful login
       final token = await NotificationService.getToken();
       if (token != null && user != null) {
         await FirebaseFirestore.instance

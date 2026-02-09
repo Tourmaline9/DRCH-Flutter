@@ -32,7 +32,7 @@ class NaturalMapScreen extends StatelessWidget {
               : magnitude >= 4
               ? Colors.orange
               : Colors.yellow,
-          size: 14 + magnitude * 2, // ✅ NOW VALID
+          size: 14 + magnitude * 2,
         ),
       );
     }).toList();

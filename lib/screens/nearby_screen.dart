@@ -75,7 +75,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
       if (!mounted) return;
 
       setState(() {
-        _markers = temp; // ✅ FIXED
+        _markers = temp;
         _loading = false;
       });
 
@@ -115,7 +115,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
 
         children: [
 
-          // 🗺️ MAP TILES (HOT SERVER - Better)
+          // MAP TILES (HOT SERVER - Better)
           TileLayer(
             urlTemplate:
             "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",

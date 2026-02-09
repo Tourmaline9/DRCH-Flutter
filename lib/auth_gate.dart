@@ -22,12 +22,12 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        // ❌ Not logged in
+        // Not logged in
         if (!snapshot.hasData) {
           return const LoginScreen();
         }
 
-        // ✅ Logged in
+        //  Logged in
         return const MainWrapper();
       },
     );
