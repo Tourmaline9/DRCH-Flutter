@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'package:http/http.dart' as http;
+import 'natural_map_screen.dart';
 import '../widgets/loading_state.dart';
 import '../widgets/empty_state.dart';
 import 'incident_details_screen.dart';
@@ -11,14 +13,24 @@ import 'map_screen.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  // 🔴 Severity color helper
+  // ================= HELPERS =================
+
+  bool _isManMade(String type) {
+    final t = type.toLowerCase();
+    return t.contains("accident") ||
+        t.contains("fire") ||
+        t.contains("road") ||
+        t.contains("riot") ||
+        t.contains("explosion") ||
+        t.contains("flood");
+  }
+
   Color _severityColor(int s) {
     if (s >= 4) return Colors.red;
     if (s >= 2) return Colors.orange;
     return Colors.green;
   }
 
-  // 🕒 Date & time formatter
   String _formatDateTime(int millis) {
     final d = DateTime.fromMillisecondsSinceEpoch(millis);
     return "${d.day.toString().padLeft(2, '0')}-"
@@ -28,301 +40,291 @@ class HomeScreen extends StatelessWidget {
         "${d.minute.toString().padLeft(2, '0')}";
   }
 
+  // ================= INDIA-ONLY EARTHQUAKES =================
+
+  Future<List<Map<String, dynamic>>> _fetchIndiaEarthquakes() async {
+    final url = Uri.parse(
+      "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson",
+    );
+
+    final res = await http.get(url);
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to load earthquakes");
+    }
+
+    final data = json.decode(res.body);
+    final List features = data["features"];
+
+    // 🇮🇳 India bounding box filter
+    return features.where((e) {
+      final coords = e["geometry"]["coordinates"];
+      final lon = coords[0];
+      final lat = coords[1];
+
+      return lat >= 6 &&
+          lat <= 37 &&
+          lon >= 68 &&
+          lon <= 97;
+    }).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+
+  // ================= UI =================
+
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection("reports")
-          .orderBy("createdAt", descending: true)
-          .snapshots(),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            "DRCH",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          bottom: const TabBar(
+            indicatorWeight: 3,
+            tabs: [
+              Tab(
+                icon: Icon(Icons.warning_amber_rounded),
+                text: "Reported",
+              ),
+              Tab(
+                icon: Icon(Icons.public),
+                text: "Natural (India)",
+              ),
+            ],
+          ),
+        ),
 
-      builder: (context, snapshot) {
-        // 🔄 LOADING
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const LoadingState(
-            message: "Loading verified incidents...",
-          );
-        }
-
-        // ❌ ERROR
-        if (snapshot.hasError) {
-          return Center(
-            child: Text(snapshot.error.toString()),
-          );
-        }
-
-        // 📭 NO DATA
-        if (!snapshot.hasData) {
-          return const EmptyState(
-            icon: Icons.inbox,
-            title: "No verified incidents",
-            subtitle: "Once incidents are verified, they will appear here.",
-          );
-        }
-
-        // 🔥 ONLY VERIFIED REPORTS
-        final docs = snapshot.data!.docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return data["verified"] == true;
-        }).toList();
-
-        if (docs.isEmpty) {
-          return const EmptyState(
-            icon: Icons.verified_outlined,
-            title: "No verified incidents yet",
-            subtitle: "Verified reports will appear here.",
-          );
-        }
-
-        return ListView(
+        body: TabBarView(
           children: [
 
-            // ================= HEADER =================
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFFD32F2F),
-                    Color(0xFFB71C1C),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
-                ),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Verified Incidents",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    "Confirmed by nearby users",
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // ================= TAB 1: REPORTED =================
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection("reports")
+                  .orderBy("createdAt", descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const LoadingState(
+                    message: "Loading verified incidents...",
+                  );
+                }
 
-            const SizedBox(height: 8),
+                if (snapshot.hasError) {
+                  return Center(child: Text(snapshot.error.toString()));
+                }
 
-            // ================= INCIDENT CARDS =================
-            ...docs.map((doc) {
-              final data = doc.data() as Map<String, dynamic>;
+                if (!snapshot.hasData) {
+                  return const EmptyState(
+                    icon: Icons.inbox,
+                    title: "No verified incidents",
+                    subtitle: "Verified incidents will appear here",
+                  );
+                }
 
-              return Card(
-                elevation: 2,
-                shadowColor: Colors.black26,
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
+                final docs = snapshot.data!.docs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return data["verified"] == true &&
+                      _isManMade(data["type"] ?? "");
+                }).toList();
 
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                if (docs.isEmpty) {
+                  return const EmptyState(
+                    icon: Icons.verified_outlined,
+                    title: "No verified incidents",
+                    subtitle: "Nothing reported yet",
+                  );
+                }
 
-                    // ---------- HEADER ----------
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                      child: Row(
+                return ListView(
+                  children: docs.map((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
 
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.warning_amber_rounded,
-                              color: Colors.red,
-                              size: 26,
-                            ),
-                          ),
-
-                          const SizedBox(width: 12),
-
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          // HEADER
+                          Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
                               children: [
-                                Text(
-                                  data["type"] ?? "Unknown",
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(
-                                    fontWeight: FontWeight.w600,
+                                const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        data["type"] ?? "Unknown",
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(
+                                        _formatDateTime(data["createdAt"]),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _formatDateTime(data["createdAt"]),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _severityColor(
+                                      (data["severity"] ?? 1).toInt(),
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    "S${data["severity"]}",
+                                    style: const TextStyle(color: Colors.white),
                                   ),
                                 ),
                               ],
                             ),
                           ),
 
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _severityColor(
-                                (data["severity"] ?? 1).toInt(),
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              "S${(data["severity"] ?? 1).toInt()}",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                          if (data["images"] != null && data["images"].isNotEmpty)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Image.file(
+                                File(data["images"][0]),
+                                height: 200,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
                               ),
                             ),
+
+                          Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Text(data["description"] ?? ""),
                           ),
-                        ],
-                      ),
-                    ),
 
-                    // ---------- IMAGE ----------
-                    if (data["images"] != null &&
-                        data["images"].isNotEmpty)
-                      ClipRRect(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(14),
-                          topRight: Radius.circular(14),
-                        ),
-                        child: Image.file(
-                          File(data["images"][0]),
-                          height: 220,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                          const SizedBox(),
-                        ),
-                      ),
+                          const Divider(height: 1),
 
-                    // ---------- DESCRIPTION ----------
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-                      child: Text(
-                        data["description"] ?? "",
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(height: 1.5),
-                      ),
-                    ),
-
-                    const Divider(height: 1),
-
-                    // ---------- ACTIONS ----------
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 6,
-                      ),
-                      child: Row(
-                        mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
-                        children: [
-
-                          Row(
-                            children: [
-
-                              // 📍 LOCATION
-                              TextButton.icon(
-                                icon: const Icon(Icons.map_outlined),
-                                label: const Text("Location"),
-                                onPressed: () {
-                                  if (data["lat"] == null ||
-                                      data["lng"] == null) {
-                                    ScaffoldMessenger.of(context)
-                                        .showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          "Location not available",
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Row(
+                              children: [
+                                TextButton.icon(
+                                  icon: const Icon(Icons.map_outlined),
+                                  label: const Text("Location"),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => MapScreen(
+                                          lat: data["lat"],
+                                          lng: data["lng"],
                                         ),
                                       ),
                                     );
-                                    return;
-                                  }
-
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => MapScreen(
-                                        lat: data["lat"],
-                                        lng: data["lng"],
+                                  },
+                                ),
+                                TextButton.icon(
+                                  icon: const Icon(Icons.forum_outlined),
+                                  label: const Text("Details"),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => IncidentDetailsScreen(
+                                          reportId: doc.id,
+                                          reportData: data,
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                },
-                              ),
-
-                              const SizedBox(width: 6),
-
-                              // 💬 DETAILS
-                              TextButton.icon(
-                                icon: const Icon(Icons.forum_outlined),
-                                label: const Text("View details"),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          IncidentDetailsScreen(
-                                            reportId: doc.id,
-                                            reportData: data,
-                                          ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-
-                          // ✅ VERIFIED
-                          const Icon(
-                            Icons.verified,
-                            color: Colors.green,
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+
+            // ================= TAB 2: NATURAL (INDIA) =================
+            FutureBuilder<List<Map<String, dynamic>>>(
+              future: _fetchIndiaEarthquakes(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const EmptyState(
+                    icon: Icons.public,
+                    title: "No recent disasters",
+                    subtitle: "No natural disasters in India this week",
+                  );
+                }
+
+                final data = snapshot.data!;
+
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.map),
+                          label: const Text("View on Map"),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => NaturalMapScreen(
+                                  earthquakes: data,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: data.length,
+                        itemBuilder: (context, i) {
+                          final p = data[i]["properties"];
+
+                          return Card(
+                            margin:
+                            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            child: ListTile(
+                              leading: const Icon(Icons.public, color: Colors.blue),
+                              title: Text(p["place"] ?? "Unknown location"),
+                              subtitle: Text(
+                                "Magnitude: ${p["mag"]}",
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ],
-                ),
-              );
-            }).toList(),
+                );
+              },
+            ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 }
