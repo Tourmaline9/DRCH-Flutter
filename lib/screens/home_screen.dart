@@ -79,7 +79,7 @@ class HomeScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text(
-            "DRCH",
+            "Disasters",
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           bottom: const TabBar(

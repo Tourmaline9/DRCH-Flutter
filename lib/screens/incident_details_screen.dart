@@ -186,12 +186,14 @@ class _IncidentDetailsScreenState
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+
           Text(
             widget.reportData["type"] ?? "Incident",
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 8),
           Text(widget.reportData["description"] ?? ""),
+
           const SizedBox(height: 24),
 
           // ===== PRESENCE =====
@@ -212,11 +214,12 @@ class _IncidentDetailsScreenState
 
           // ===== REQUIREMENTS =====
           const Text(
-            "Requirements",
+            "Requirements and updates",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
 
           if (_isPresent) ...[
+            const SizedBox(height: 8),
             TextField(
               controller: _requirementController,
               decoration: const InputDecoration(
@@ -225,12 +228,13 @@ class _IncidentDetailsScreenState
             ),
             ElevatedButton(
               onPressed: _addRequirement,
-              child: const Text("Add Requirement"),
+              child: const Text("Send Requirement"),
             ),
           ],
 
           const SizedBox(height: 16),
 
+          // ===== REQUIREMENT LIST =====
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection("reports")
@@ -259,18 +263,22 @@ class _IncidentDetailsScreenState
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ===== TITLE + ACTIONS =====
+
+                          // ===== TITLE + ACTION =====
                           Row(
-                            mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                r["title"],
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                              Expanded(
+                                child: Text(
+                                  r["title"],
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
                                 ),
                               ),
+                              const SizedBox(width: 8),
                               if (!fulfilled)
                                 ElevatedButton(
                                   onPressed: () =>
@@ -278,7 +286,7 @@ class _IncidentDetailsScreenState
                                   child: const Text("Contribute"),
                                 )
                               else
-                                 const Chip(
+                                const Chip(
                                   label: Text("Fulfilled"),
                                   backgroundColor: Colors.green,
                                   labelStyle:
@@ -287,10 +295,9 @@ class _IncidentDetailsScreenState
                             ],
                           ),
 
-                          // ===== MARK FULFILLED =====
                           if (_isPresent && !fulfilled)
                             TextButton.icon(
-
+                              icon: const Icon(Icons.check_circle_outline),
                               label: const Text("Mark Fulfilled"),
                               onPressed: () async {
                                 await FirebaseFirestore.instance
@@ -371,23 +378,19 @@ class _IncidentDetailsScreenState
                                               icon: Icon(
                                                 hasUpvoted
                                                     ? Icons.thumb_up
-                                                    : Icons
-                                                    .thumb_up_outlined,
+                                                    : Icons.thumb_up_outlined,
                                                 color: hasUpvoted
                                                     ? Colors.blue
                                                     : Colors.grey,
                                               ),
                                               onPressed: () async {
                                                 final ref =
-                                                FirebaseFirestore
-                                                    .instance
+                                                FirebaseFirestore.instance
                                                     .collection("reports")
                                                     .doc(widget.reportId)
-                                                    .collection(
-                                                    "requirements")
+                                                    .collection("requirements")
                                                     .doc(req.id)
-                                                    .collection(
-                                                    "contributions")
+                                                    .collection("contributions")
                                                     .doc(c.id);
 
                                                 if (hasUpvoted) {

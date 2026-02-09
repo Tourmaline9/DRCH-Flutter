@@ -60,12 +60,12 @@ class ReportService {
       final double reportLat = data["lat"];
       final double reportLng = data["lng"];
 
-      // ❌ Author cannot verify
+      //  Author cannot verify
       if (author == _uid) {
         throw "You cannot verify your own report";
       }
 
-      // ❌ Already voted
+      // Already voted
       if (votes.contains(_uid)) {
         throw "You already verified this report";
       }
@@ -78,7 +78,7 @@ class ReportService {
         reportLng,
       );
 
-      // ❌ Too far (200 meters)
+      // Too far (200 meters)
       if (distance > 200) {
         throw "You must be within 150 meters to verify this report";
       }

@@ -7,8 +7,8 @@ class DisasterReport {
   final List<String> imagePaths;
   final DateTime time;
 
-  final double latitude;   // 🔥 NEW
-  final double longitude;  // 🔥 NEW
+  final double latitude;
+  final double longitude;
 
   bool verified;
 
@@ -19,8 +19,8 @@ class DisasterReport {
     required this.imagePaths,
     required this.time,
 
-    required this.latitude,   // 🔥
-    required this.longitude,  // 🔥
+    required this.latitude,
+    required this.longitude,
 
     this.verified = false,
   });
@@ -43,17 +43,17 @@ class ReportStore {
 
   void addReport(DisasterReport report) {
     _reports.add(report);
-    notifier.value++; // 🔥 Notify UI
+    notifier.value++;
   }
 
   void removeReport(DisasterReport report) {
     _reports.remove(report);
-    notifier.value++; // 🔥 Notify UI
+    notifier.value++;
   }
 
   void verifyReport(DisasterReport report) {
     report.verified = true;
-    notifier.value++; // 🔥 Notify UI
+    notifier.value++;
   }
 
   List<DisasterReport> get unverifiedReports =>
