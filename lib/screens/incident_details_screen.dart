@@ -278,7 +278,7 @@ class _IncidentDetailsScreenState
                                   child: const Text("Contribute"),
                                 )
                               else
-                                const Chip(
+                                 const Chip(
                                   label: Text("Fulfilled"),
                                   backgroundColor: Colors.green,
                                   labelStyle:

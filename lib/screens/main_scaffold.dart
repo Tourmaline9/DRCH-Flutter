@@ -107,7 +107,7 @@ class _MainScaffoldState extends State<MainScaffold> {
         selectedItemColor: Colors.red,
         unselectedItemColor: Colors.grey,
         onTap: (i) {
-          setState(() {
+           setState(() {
             _index = i;
           });
         },
