@@ -28,41 +28,79 @@ class _ReportScreenState extends State<ReportScreen> {
   double? _lat;
   double? _lng;
   List<File> _images = [];
+  bool _submitting = false;
 
-  // ---------- HELPERS ----------
+  // ================= IMAGE =================
 
   Future<void> _pickImage() async {
-    final file =
-    await _picker.pickImage(source: ImageSource.camera);
-    if (file != null) {
-      setState(() {
-        _images.add(File(file.path));
-      });
+    try {
+      final file =
+      await _picker.pickImage(source: ImageSource.camera);
+
+      if (file != null) {
+        setState(() {
+          _images.add(File(file.path));
+        });
+      }
+    } catch (e) {
+      _show("Camera permission required");
     }
   }
 
-  Future<void> _getLocation() async {
-    final permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) return;
+  // ================= LOCATION =================
 
-    final pos = await Geolocator.getCurrentPosition();
-    setState(() {
-      _lat = pos.latitude;
-      _lng = pos.longitude;
-    });
+  Future<void> _getLocation() async {
+    try {
+      bool enabled =
+      await Geolocator.isLocationServiceEnabled();
+
+      if (!enabled) {
+        _show("Location service is disabled");
+        return;
+      }
+
+      LocationPermission permission =
+      await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission =
+        await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission ==
+              LocationPermission.deniedForever) {
+        _show("Location permission required");
+        return;
+      }
+
+      final pos =
+      await Geolocator.getCurrentPosition();
+
+      setState(() {
+        _lat = pos.latitude;
+        _lng = pos.longitude;
+      });
+    } catch (e) {
+      _show("Unable to get location");
+    }
   }
 
-  // ---------- UI ----------
+  void _show(String msg) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  // ================= UI =================
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+
           // ================= HEADER =================
           Container(
             width: double.infinity,
@@ -152,6 +190,8 @@ class _ReportScreenState extends State<ReportScreen> {
           // ================= MEDIA & LOCATION =================
           Row(
             children: [
+
+              // CAMERA
               Expanded(
                 child: OutlinedButton.icon(
                   icon: Icon(
@@ -173,6 +213,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
               const SizedBox(width: 12),
 
+              // LOCATION
               Expanded(
                 child: OutlinedButton.icon(
                   icon: Icon(
@@ -193,6 +234,7 @@ class _ReportScreenState extends State<ReportScreen> {
             ],
           ),
 
+          // IMAGE PREVIEW
           if (_images.isNotEmpty) ...[
             const SizedBox(height: 12),
             SizedBox(
@@ -203,7 +245,8 @@ class _ReportScreenState extends State<ReportScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius:
+                      BorderRadius.circular(12),
                       child: Image.file(
                         img,
                         width: 80,
@@ -224,7 +267,6 @@ class _ReportScreenState extends State<ReportScreen> {
             "Severity",
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: 6),
 
           Slider(
             value: _severity,
@@ -248,47 +290,53 @@ class _ReportScreenState extends State<ReportScreen> {
                 const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: Colors.red,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius:
+                  BorderRadius.circular(18),
                 ),
               ),
-              child: const Text(
+              child: _submitting
+                  ? const CircularProgressIndicator(
+                color: Colors.white,
+              )
+                  : const Text(
                 "Submit Report",
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              onPressed: () async {
+              onPressed: _submitting
+                  ? null
+                  : () async {
+
                 if (_type == null ||
                     _descController.text.isEmpty ||
                     _lat == null ||
                     _lng == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content:
-                      Text("Please complete all fields"),
-                    ),
-                  );
+                  _show("Please complete all fields");
                   return;
                 }
 
-                await _service.addReport(
-                  type: _type!,
-                  description: _descController.text,
-                  severity: _severity,
-                  images:
-                  _images.map((e) => e.path).toList(),
-                  lat: _lat!,
-                  lng: _lng!,
-                );
+                setState(() => _submitting = true);
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Report submitted"),
-                  ),
-                );
+                try {
+                  await _service.addReport(
+                    type: _type!,
+                    description:
+                    _descController.text.trim(),
+                    severity: _severity,
+                    images: _images,
+                    lat: _lat!,
+                    lng: _lng!,
+                  );
 
-                widget.onReportSubmitted();
+                  _show("Report submitted");
+                  widget.onReportSubmitted();
+                } catch (e) {
+                  _show(e.toString());
+                }
+
+                setState(() => _submitting = false);
               },
             ),
           ),

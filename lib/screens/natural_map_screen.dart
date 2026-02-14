@@ -12,19 +12,25 @@ class NaturalMapScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     final markers = earthquakes.map((e) {
       final coords = e["geometry"]["coordinates"];
-      final double lon = coords[0].toDouble();
-      final double lat = coords[1].toDouble();
+
+      final double lon = (coords[0] as num).toDouble();
+      final double lat = (coords[1] as num).toDouble();
 
       final magRaw = e["properties"]["mag"];
       final double magnitude =
       (magRaw is num) ? magRaw.toDouble() : 0.0;
 
+      // 🔥 Limit icon size
+      final double size =
+      (14 + magnitude * 2).clamp(12, 40);
+
       return Marker(
         point: LatLng(lat, lon),
-        width: 40,
-        height: 40,
+        width: size,
+        height: size,
         child: Icon(
           Icons.circle,
           color: magnitude >= 5
@@ -32,7 +38,7 @@ class NaturalMapScreen extends StatelessWidget {
               : magnitude >= 4
               ? Colors.orange
               : Colors.yellow,
-          size: 14 + magnitude * 2,
+          size: size,
         ),
       );
     }).toList();
@@ -47,11 +53,14 @@ class NaturalMapScreen extends StatelessWidget {
           initialZoom: 4.5,
         ),
         children: [
+
+          // ✅ Official OSM tiles (Stable)
           TileLayer(
             urlTemplate:
             "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             userAgentPackageName: 'com.example.untitled',
           ),
+
           MarkerLayer(markers: markers),
         ],
       ),

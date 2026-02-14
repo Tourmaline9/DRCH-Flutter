@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_services.dart';
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -39,25 +40,40 @@ class _LoginScreenState extends State<LoginScreen> {
           _passwordController.text.trim(),
         );
 
-        await FirebaseFirestore.instance
-            .collection("users")
-            .doc(user!.uid)
-            .set({
-          "name": _nameController.text.trim(),
-          "email": user.email,
-          "createdAt": DateTime.now().millisecondsSinceEpoch,
-        });
+        if (user != null) {
+          await FirebaseFirestore.instance
+              .collection("users")
+              .doc(user.uid)
+              .set({
+            "name": _nameController.text.trim(),
+            "email": user.email,
+            "createdAt": DateTime.now().millisecondsSinceEpoch,
+          });
+        }
       } else {
         await _authService.login(
           _emailController.text.trim(),
           _passwordController.text.trim(),
         );
       }
+
+      // ✅ NAVIGATE AFTER SUCCESS
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const HomeScreen(),
+          ),
+        );
+      }
+
     } catch (e) {
       _show(e.toString());
     }
 
-    setState(() => _loading = false);
+    if (mounted) {
+      setState(() => _loading = false);
+    }
   }
 
   void _show(String msg) {
@@ -69,34 +85,24 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFD3190D),
-
       body: Column(
         children: [
-
-          // ================= TOP WAVE =================
           Expanded(
             flex: 4,
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              decoration: const BoxDecoration(
-                color: Color(0xFFD3190D),
-              ),
-              child: Align(
-                alignment: Alignment.bottomLeft,
-                child: Text(
-                  _isSignup ? "Create\nAccount" : "Sign in",
-                  style: const TextStyle(
-                    fontSize: 34,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+              alignment: Alignment.bottomLeft,
+              child: Text(
+                _isSignup ? "Create\nAccount" : "Sign in",
+                style: const TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
             ),
           ),
-
-          // ================= WHITE CARD =================
           Expanded(
             flex: 6,
             child: Container(
@@ -108,12 +114,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   top: Radius.circular(32),
                 ),
               ),
-
               child: SingleChildScrollView(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
                     if (_isSignup) ...[
                       _field(
                         controller: _nameController,
@@ -122,25 +125,19 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
                     ],
-
                     _field(
                       controller: _emailController,
                       label: "Email",
                       icon: Icons.email,
                     ),
-
                     const SizedBox(height: 16),
-
                     _field(
                       controller: _passwordController,
                       label: "Password",
                       icon: Icons.lock,
                       obscure: true,
                     ),
-
                     const SizedBox(height: 28),
-
-                    // ================= BUTTON =================
                     SizedBox(
                       width: double.infinity,
                       height: 48,
@@ -152,7 +149,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
                           const Color(0xFFD3190D),
-                          elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius:
                             BorderRadius.circular(14),
@@ -160,7 +156,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         onPressed: _submit,
                         child: Text(
-                          _isSignup ? "Create Account" : "Login",
+                          _isSignup
+                              ? "Create Account"
+                              : "Login",
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -169,20 +167,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 18),
-
-                    // ================= TOGGLE =================
-                    Center(
-                      child: TextButton(
-                        onPressed: () {
-                          setState(() => _isSignup = !_isSignup);
-                        },
-                        child: Text(
-                          _isSignup
-                              ? "Already have an account? Login"
-                              : "Don’t have an account? Sign up",
-                        ),
+                    TextButton(
+                      onPressed: () {
+                        setState(
+                                () => _isSignup = !_isSignup);
+                      },
+                      child: Text(
+                        _isSignup
+                            ? "Already have an account? Login"
+                            : "Don’t have an account? Sign up",
                       ),
                     ),
                   ],

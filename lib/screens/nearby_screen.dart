@@ -118,12 +118,10 @@ class _NearbyScreenState extends State<NearbyScreen> {
           // MAP TILES (HOT SERVER - Better)
           TileLayer(
             urlTemplate:
-            "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
-
-            subdomains: const ['a', 'b', 'c'],
-
+            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             userAgentPackageName: 'com.example.untitled',
           ),
+
 
 
           // 📍 MARKERS

@@ -10,7 +10,8 @@ class AuthService {
   // ---------------- SIGN UP ----------------
   Future<User?> signUp(String email, String password) async {
     try {
-      final cred = await _auth.createUserWithEmailAndPassword(
+      final cred = await _auth
+          .createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -24,23 +25,27 @@ class AuthService {
   // ---------------- LOGIN ----------------
   Future<User?> login(String email, String password) async {
     try {
-      final cred = await _auth.signInWithEmailAndPassword(
+      final cred = await _auth
+          .signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       final user = cred.user;
 
-      // Save FCM token AFTER successful login
-      final token = await NotificationService.getToken();
-      if (token != null && user != null) {
-        await FirebaseFirestore.instance
-            .collection("users")
-            .doc(user.uid)
-            .set(
-          {"fcmToken": token},
-          SetOptions(merge: true),
-        );
+      if (user != null) {
+        final token =
+        await NotificationService.getToken();
+
+        if (token != null) {
+          await FirebaseFirestore.instance
+              .collection("users")
+              .doc(user.uid)
+              .set(
+            {"fcmToken": token},
+            SetOptions(merge: true),
+          );
+        }
       }
 
       return user;
@@ -55,5 +60,6 @@ class AuthService {
   }
 
   // ---------------- AUTH STATE ----------------
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  Stream<User?> get authStateChanges =>
+      _auth.authStateChanges();
 }

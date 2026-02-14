@@ -4,7 +4,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 
 class MapScreen extends StatefulWidget {
-
   final dynamic lat;
   final dynamic lng;
 
@@ -19,7 +18,6 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-
   final MapController _mapController = MapController();
 
   LatLng? _userLocation;
@@ -36,7 +34,6 @@ class _MapScreenState extends State<MapScreen> {
   // ---------------- INIT ----------------
 
   Future<void> _initLocations() async {
-    // Convert disaster coords
     final double? lat = _toDouble(widget.lat);
     final double? lng = _toDouble(widget.lng);
 
@@ -47,7 +44,6 @@ class _MapScreenState extends State<MapScreen> {
 
     _disasterLocation = LatLng(lat, lng);
 
-    // Get user location
     try {
       LocationPermission permission =
       await Geolocator.checkPermission();
@@ -70,7 +66,6 @@ class _MapScreenState extends State<MapScreen> {
 
     setState(() => _loading = false);
 
-    // Center map
     _centerMap();
   }
 
@@ -79,7 +74,6 @@ class _MapScreenState extends State<MapScreen> {
   void _centerMap() {
     if (_disasterLocation == null) return;
 
-    // If user location available → center between both
     if (_userLocation != null) {
       final center = LatLng(
         (_userLocation!.latitude +
@@ -90,26 +84,19 @@ class _MapScreenState extends State<MapScreen> {
             2,
       );
 
-      _mapController.move(center, 13);
+      _mapController.move(center, 14);
     } else {
-      // Otherwise center on disaster
       _mapController.move(_disasterLocation!, 15);
     }
   }
-// ---------------- HELPERS ----------------
+
+  // ---------------- HELPERS ----------------
 
   double? _toDouble(dynamic value) {
-
     if (value == null) return null;
-
     if (value is double) return value;
-
     if (value is int) return value.toDouble();
-
-    if (value is String) {
-      return double.tryParse(value);
-    }
-
+    if (value is String) return double.tryParse(value);
     return null;
   }
 
@@ -119,9 +106,7 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -138,40 +123,47 @@ class _MapScreenState extends State<MapScreen> {
       appBar: AppBar(
         title: const Text("Disaster Location"),
       ),
-
       body: FlutterMap(
-
         mapController: _mapController,
-
         options: MapOptions(
           initialCenter: _disasterLocation!,
           initialZoom: 15,
         ),
-
         children: [
 
-          // 🗺️ OSM Tiles
+          // 🗺️ Map Tiles
           TileLayer(
             urlTemplate:
-            "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
-
-            subdomains: const ['a', 'b', 'c'],
-
+            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             userAgentPackageName: 'com.example.untitled',
           ),
 
 
-          // 📍 Markers
+
+
+          // 🔴 200M RADIUS CIRCLE
+          CircleLayer(
+            circles: [
+              CircleMarker(
+                point: _disasterLocation!,
+                radius: 200, // 200 meters
+                useRadiusInMeter: true,
+                color: Colors.red.withOpacity(0.2),
+                borderColor: Colors.red,
+                borderStrokeWidth: 2,
+              ),
+            ],
+          ),
+
+          // 📍 MARKERS
           MarkerLayer(
             markers: [
 
-              // 🚨 Disaster marker (RED)
+              // 🚨 Disaster marker
               Marker(
                 point: _disasterLocation!,
-
                 width: 40,
                 height: 40,
-
                 child: const Icon(
                   Icons.location_pin,
                   color: Colors.red,
@@ -179,14 +171,12 @@ class _MapScreenState extends State<MapScreen> {
                 ),
               ),
 
-              // 👤 User marker (BLUE)
+              // 👤 User marker
               if (_userLocation != null)
                 Marker(
                   point: _userLocation!,
-
                   width: 35,
                   height: 35,
-
                   child: const Icon(
                     Icons.person_pin_circle,
                     color: Colors.blue,
@@ -198,10 +188,8 @@ class _MapScreenState extends State<MapScreen> {
         ],
       ),
 
-      // 🔘 Recenter Button
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.my_location),
-
         onPressed: _centerMap,
       ),
     );
