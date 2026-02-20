@@ -21,8 +21,17 @@ class VerifyScreen extends StatelessWidget {
 
   String _formatDateTime(dynamic timestamp) {
     if (timestamp == null) return "";
-    final date =
-    DateTime.fromMillisecondsSinceEpoch(timestamp);
+
+    DateTime date;
+
+    if (timestamp is Timestamp) {
+      date = timestamp.toDate();
+    } else if (timestamp is int) {
+      date = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    } else {
+      return "";
+    }
+
     return "${date.day.toString().padLeft(2, '0')}/"
         "${date.month.toString().padLeft(2, '0')}/"
         "${date.year}  "
@@ -36,7 +45,6 @@ class VerifyScreen extends StatelessWidget {
     if (imageData == null) return const SizedBox();
 
     try {
-      // Base64 image
       if (imageData is String &&
           !imageData.startsWith("/data/") &&
           !imageData.startsWith("file:")) {
@@ -45,14 +53,11 @@ class VerifyScreen extends StatelessWidget {
           height: 220,
           width: double.infinity,
           fit: BoxFit.cover,
-          gaplessPlayback: true,
         );
       }
 
-      // Old file path image
       if (imageData is String) {
         final file = File(imageData);
-
         if (file.existsSync()) {
           return Image.file(
             file,
@@ -60,23 +65,139 @@ class VerifyScreen extends StatelessWidget {
             width: double.infinity,
             fit: BoxFit.cover,
           );
-        } else {
-          return const SizedBox(); // 🔥 Prevent crash
         }
       }
-    } catch (_) {
-      return const SizedBox();
-    }
+    } catch (_) {}
 
     return const SizedBox();
   }
 
+  // ================= AI PANEL =================
+
+  Widget _buildAIPanel(Map<String, dynamic>? ai) {
+    if (ai == null) {
+      return Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: const [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 8),
+            Text("AI analysis in progress..."),
+          ],
+        ),
+      );
+    }
+
+    final double confidence =
+    (ai["confidence"] ?? 0).toDouble();
+
+    final int matchScore =
+    (ai["match_score"] ?? 0).toInt();
+
+    final String summary =
+        ai["ai_summary"] ?? "No summary";
+
+    final String alertType =
+        ai["alert_type"] ?? "Unknown";
+
+    Color confidenceColor;
+    if (confidence > 0.85) {
+      confidenceColor = Colors.green;
+    } else if (confidence > 0.6) {
+      confidenceColor = Colors.orange;
+    } else {
+      confidenceColor = Colors.red;
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: confidenceColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: confidenceColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+
+          // Confidence Badge
+          Row(
+            children: [
+              Icon(
+                Icons.smart_toy,
+                color: confidenceColor,
+                size: 18,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                "${(confidence * 100).toStringAsFixed(1)}% AI Confidence",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: confidenceColor,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Alert Type
+          Text(
+            "Detected Type: $alertType",
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          // AI Summary
+          Text(
+            summary,
+            style: const TextStyle(fontSize: 13),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Match Score
+          Text(
+            "Match Score: $matchScore / 10",
+            style: const TextStyle(fontSize: 12),
+          ),
+
+          // Warning if mismatch
+          if (matchScore < 5)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                "⚠ The image does not clearly match the description.",
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   // ================= DISTANCE CHECK =================
 
   Future<bool> _isUserWithin200m(
       double reportLat,
       double reportLng) async {
+
     if (!await Geolocator.isLocationServiceEnabled()) {
       return false;
     }
@@ -115,9 +236,11 @@ class VerifyScreen extends StatelessWidget {
   void _safeDeleteIfExpired(
       QueryDocumentSnapshot doc,
       Map<String, dynamic> data) {
-    final createdAt = data["createdAt"] ?? 0;
-    final reportTime =
-    DateTime.fromMillisecondsSinceEpoch(createdAt);
+
+    if (data["createdAt"] == null) return;
+
+    final Timestamp ts = data["createdAt"];
+    final reportTime = ts.toDate();
 
     final difference =
     DateTime.now().difference(reportTime);
@@ -125,8 +248,8 @@ class VerifyScreen extends StatelessWidget {
     final expired24 =
         difference.inHours >= 24;
 
-    if (expired24 && data["verified"] == false) {
-      // 🔥 Delete safely outside build cycle
+    if (expired24 &&
+        data["verified"] == false) {
       Future.microtask(() {
         FirebaseFirestore.instance
             .collection("reports")
@@ -148,6 +271,7 @@ class VerifyScreen extends StatelessWidget {
           .orderBy("createdAt", descending: true)
           .snapshots(),
       builder: (context, snapshot) {
+
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
           return const LoadingState(
@@ -182,28 +306,36 @@ class VerifyScreen extends StatelessWidget {
 
         return ListView(
           children: docs.map((doc) {
+
             final data =
             doc.data() as Map<String, dynamic>;
+
             final votes =
                 (data["votes"] as List?) ?? [];
 
-            final createdAt =
-                data["createdAt"] ?? 0;
-            final reportTime =
-            DateTime.fromMillisecondsSinceEpoch(
-                createdAt);
+            final requiredVotes =
+            (data["requiredVotes"] ?? 3)
+                .toInt();
+
+            if (data["createdAt"] == null) {
+              return const SizedBox();
+            }
+
+            final Timestamp ts =
+            data["createdAt"];
+
+            final reportTime = ts.toDate();
 
             final difference =
             DateTime.now()
                 .difference(reportTime);
 
-            // 🔥 15 MIN WINDOW
             final expired15 =
                 difference.inMinutes >= 15;
+
             final remainingMinutes =
                 15 - difference.inMinutes;
 
-            // 🔥 SAFE 24H AUTO DELETE
             _safeDeleteIfExpired(doc, data);
 
             return Card(
@@ -211,7 +343,8 @@ class VerifyScreen extends StatelessWidget {
               const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 10),
-              shape: RoundedRectangleBorder(
+              shape:
+              RoundedRectangleBorder(
                 borderRadius:
                 BorderRadius.circular(18),
               ),
@@ -228,9 +361,11 @@ class VerifyScreen extends StatelessWidget {
                       children: [
                         const Icon(
                           Icons.help_outline,
-                          color: Colors.orange,
+                          color:
+                          Colors.orange,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(
+                            width: 8),
                         Expanded(
                           child: Column(
                             crossAxisAlignment:
@@ -254,8 +389,8 @@ class VerifyScreen extends StatelessWidget {
                                 style:
                                 const TextStyle(
                                   fontSize: 12,
-                                  color:
-                                  Colors.grey,
+                                  color: Colors
+                                      .grey,
                                 ),
                               ),
                             ],
@@ -270,10 +405,12 @@ class VerifyScreen extends StatelessWidget {
                           ),
                           decoration:
                           BoxDecoration(
-                            color: _severityColor(
-                                (data["severity"] ??
-                                    1)
-                                    .toInt()),
+                            color:
+                            _severityColor(
+                              (data["severity"] ??
+                                  1)
+                                  .toInt(),
+                            ),
                             borderRadius:
                             BorderRadius
                                 .circular(
@@ -295,20 +432,43 @@ class VerifyScreen extends StatelessWidget {
                   // IMAGE
                   if (data["images"] != null &&
                       data["images"]
+                      is List &&
+                      data["images"]
                           .isNotEmpty)
-                    ClipRRect(
-                      borderRadius:
-                      const BorderRadius
-                          .only(
-                        topLeft:
-                        Radius.circular(
+                    Padding(
+                      padding:
+                      const EdgeInsets
+                          .symmetric(
+                          horizontal:
+                          12),
+                      child: ClipRRect(
+                        borderRadius:
+                        BorderRadius
+                            .circular(
                             14),
-                        topRight:
-                        Radius.circular(
-                            14),
+                        child:
+                        _buildImage(
+                          data["images"]
+                          [0],
+                        ),
                       ),
-                      child: _buildImage(
-                          data["images"][0]),
+                    ),
+
+                  // AI PANEL
+                  if (data["aiAnalysis"] == null)
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: const [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 8),
+                          Text("AI analysis in progress..."),
+                        ],
+                      ),
                     ),
 
                   // DESCRIPTION
@@ -320,8 +480,10 @@ class VerifyScreen extends StatelessWidget {
                         data["description"] ??
                             ""),
                   ),
+                  _buildAIPanel(data["aiAnalysis"] as Map<String, dynamic>?),
 
-                  const Divider(height: 1),
+                  const Divider(
+                      height: 1),
 
                   // ACTIONS
                   Padding(
@@ -341,14 +503,14 @@ class VerifyScreen extends StatelessWidget {
                           icon: const Icon(
                               Icons
                                   .map_outlined),
-                          label:
-                          const Text(
+                          label: const Text(
                               "Location"),
                           onPressed: () {
                             if (data["lat"] ==
                                 null ||
                                 data["lng"] ==
-                                    null) return;
+                                    null)
+                              return;
 
                             Navigator.push(
                               context,
@@ -366,46 +528,41 @@ class VerifyScreen extends StatelessWidget {
                         ),
 
                         ElevatedButton.icon(
-                          icon: const Icon(
-                              Icons.check),
+                          icon:
+                          const Icon(
+                              Icons
+                                  .check),
                           label: Text(
                               expired15
                                   ? "Expired"
                                   : "Verify"),
-                          style:
-                          ElevatedButton
-                              .styleFrom(
-                            backgroundColor:
-                            expired15
-                                ? Colors
-                                .grey
-                                : null,
-                          ),
                           onPressed:
                           expired15
                               ? null
                               : () async {
+
                             final
                             isNearby =
                             await _isUserWithin200m(
-                              data[
-                              "lat"],
-                              data[
-                              "lng"],
-                            );
+                                data[
+                                "lat"],
+                                data[
+                                "lng"]);
 
                             if (!isNearby) {
-                              ScaffoldMessenger.of(context)
+                              ScaffoldMessenger.of(
+                                  context)
                                   .showSnackBar(
                                 const SnackBar(
-                                  content:
-                                  Text("You must be within 200 meters"),
+                                  content: Text(
+                                      "You must be within 200 meters"),
                                 ),
                               );
                               return;
                             }
 
-                            await service.vote(
+                            await service
+                                .vote(
                                 doc.id);
                           },
                         ),
@@ -413,7 +570,6 @@ class VerifyScreen extends StatelessWidget {
                     ),
                   ),
 
-                  // STATUS TEXT
                   Padding(
                     padding:
                     const EdgeInsets
@@ -426,7 +582,8 @@ class VerifyScreen extends StatelessWidget {
                       expired15
                           ? "Verification closed (15 min limit)"
                           : "Verification open • $remainingMinutes min left",
-                      style: TextStyle(
+                      style:
+                      TextStyle(
                         fontSize: 12,
                         color: expired15
                             ? Colors.red
@@ -444,7 +601,7 @@ class VerifyScreen extends StatelessWidget {
                       bottom: 8,
                     ),
                     child: Text(
-                      "Votes: ${votes.length}/3",
+                      "Votes: ${votes.length}/$requiredVotes",
                       style:
                       const TextStyle(
                         fontSize: 12,

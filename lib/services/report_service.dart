@@ -6,16 +6,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:http/http.dart' as http;
+
+import 'ai_verification_service.dart';
 
 class ReportService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   String get _uid => _auth.currentUser!.uid;
-
-  // 🔥 ADD YOUR HUGGINGFACE TOKEN HERE
-  final String _hfToken = "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";
 
   // ================= IMAGE COMPRESSION =================
   Future<String> _compressAndConvert(File file) async {
@@ -38,64 +36,6 @@ class ReportService {
     return base64Encode(compressedBytes);
   }
 
-  // ================= AI IMAGE ANALYSIS =================
-  Future<Map<String, dynamic>> _analyzeImage(Uint8List bytes) async {
-    final response = await http.post(
-      Uri.parse(
-          "https://api-inference.huggingface.co/models/google/vit-base-patch16-224"),
-      headers: {
-        "Authorization": "Bearer $_hfToken",
-        "Content-Type": "application/octet-stream",
-      },
-      body: bytes,
-    );
-
-    if (response.statusCode != 200) {
-      return {
-        "label": "unknown",
-        "confidence": 0.0,
-      };
-    }
-
-    final result = jsonDecode(response.body);
-
-    return {
-      "label": result[0]["label"],
-      "confidence": result[0]["score"],
-    };
-  }
-
-  // ================= AI TEXT ANALYSIS =================
-  Future<double> _analyzeText(String description) async {
-    final response = await http.post(
-      Uri.parse(
-          "https://api-inference.huggingface.co/models/facebook/bart-large-mnli"),
-      headers: {
-        "Authorization": "Bearer $_hfToken",
-        "Content-Type": "application/json",
-      },
-      body: jsonEncode({
-        "inputs": description,
-        "parameters": {
-          "candidate_labels": [
-            "fire",
-            "flood",
-            "accident",
-            "earthquake",
-            "explosion"
-          ]
-        }
-      }),
-    );
-
-    if (response.statusCode != 200) {
-      return 0.0;
-    }
-
-    final result = jsonDecode(response.body);
-    return result["scores"][0];
-  }
-
   // ================= CREATE REPORT =================
   Future<void> addReport({
     required String type,
@@ -104,11 +44,13 @@ class ReportService {
     required List<File> images,
     required double lat,
     required double lng,
+    required Map<String, dynamic> aiAnalysis, // not used directly
   }) async {
     if (_auth.currentUser == null) {
       throw Exception("User not authenticated");
     }
 
+    // Compress images
     List<String> base64Images = [];
 
     for (var file in images) {
@@ -116,56 +58,84 @@ class ReportService {
       base64Images.add(compressed);
     }
 
-    // ================= AI PROCESS =================
-
-    Map<String, dynamic> aiResult = {
-      "imageLabel": "unknown",
-      "imageConfidence": 0.0,
-      "textConfidence": 0.0,
-      "aiVerified": false,
-    };
-
-    try {
-      if (images.isNotEmpty) {
-        final imageBytes = await images.first.readAsBytes();
-
-        final imageAnalysis = await _analyzeImage(imageBytes);
-        final textConfidence = await _analyzeText(description);
-
-        final bool aiVerified =
-            imageAnalysis["confidence"] > 0.6 &&
-                textConfidence > 0.6;
-
-        aiResult = {
-          "imageLabel": imageAnalysis["label"],
-          "imageConfidence": imageAnalysis["confidence"],
-          "textConfidence": textConfidence,
-          "aiVerified": aiVerified,
-        };
-      }
-    } catch (_) {
-      // Fail silently for prototype
-    }
-
-    // ================= SAVE REPORT =================
-
-    await _db.collection("reports").add({
+    // Save report immediately
+    final docRef = await _db.collection("reports").add({
       "type": type,
       "description": description,
       "severity": severity,
-      "images": base64Images,
       "lat": lat,
       "lng": lng,
+      "images": base64Images,
       "verified": false,
+      "requiredVotes": 3,
       "votes": [],
       "authorId": _uid,
-      "createdAt": DateTime.now().millisecondsSinceEpoch,
-      "aiAnalysis": aiResult, // 🔥 NEW FIELD
+      "createdAt": FieldValue.serverTimestamp(),
+      "aiAnalysis": null,
     });
+
+    // Run AI in background
+    _runAiInBackground(docRef, images, description, type);
+  }
+
+  // ================= BACKGROUND AI =================
+  Future<void> _runAiInBackground(
+      DocumentReference docRef,
+      List<File> images,
+      String description,
+      String type,
+      ) async {
+    try {
+      print("🔥 AI BACKGROUND STARTED");
+
+      if (images.isEmpty) return;
+
+      Uint8List imageBytes = await images.first.readAsBytes();
+
+      // ===== OPTION A: REAL GEMINI =====
+      final aiResult = await AiVerificationService().verifyReport(
+        imageBytes: imageBytes,
+        description: description,
+        selectedType: type,
+      );
+
+      // ===== OPTION B: TEST MODE (uncomment to test Firestore update) =====
+      /*
+      await Future.delayed(const Duration(seconds: 2));
+      final aiResult = {
+        "is_disaster": true,
+        "confidence": 0.95,
+        "ai_summary": "Smoke and flames detected.",
+        "match_score": 9,
+        "alert_type": "Fire"
+      };
+      */
+
+      int requiredVotes = 3;
+
+      final double confidence =
+      (aiResult["confidence"] ?? 0).toDouble();
+
+      final int matchScore =
+      (aiResult["match_score"] ?? 0).toInt();
+
+      if (confidence > 0.9 && matchScore > 8) {
+        requiredVotes = 2;
+      }
+
+      await docRef.update({
+        "aiAnalysis": aiResult,
+        "requiredVotes": requiredVotes,
+      });
+
+      print("✅ AI UPDATE SUCCESS");
+
+    } catch (e) {
+      print("🔥 AI BACKGROUND ERROR: $e");
+    }
   }
 
   // ================= STREAMS =================
-
   Stream<QuerySnapshot> getVerifiedReports() {
     return _db
         .collection("reports")
@@ -198,8 +168,7 @@ class ReportService {
     await Geolocator.checkPermission();
 
     if (permission == LocationPermission.denied) {
-      permission =
-      await Geolocator.requestPermission();
+      permission = await Geolocator.requestPermission();
     }
 
     if (permission == LocationPermission.deniedForever) {
@@ -221,6 +190,8 @@ class ReportService {
       final data = snap.data()!;
       final String authorId = data["authorId"] ?? "";
       final List votes = List.from(data["votes"] ?? []);
+      final int requiredVotes =
+      (data["requiredVotes"] ?? 3) as int;
 
       final double reportLat =
       (data["lat"] as num).toDouble();
@@ -251,7 +222,8 @@ class ReportService {
 
       tx.update(ref, {
         "votes": votes,
-        "verified": votes.length >= 3,
+        "verified":
+        votes.length >= requiredVotes,
       });
     });
   }

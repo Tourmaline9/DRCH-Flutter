@@ -32,13 +32,28 @@ class HomeScreen extends StatelessWidget {
     return Colors.green;
   }
 
-  String _formatDateTime(int millis) {
-    final d = DateTime.fromMillisecondsSinceEpoch(millis);
-    return "${d.day.toString().padLeft(2, '0')}-"
-        "${d.month.toString().padLeft(2, '0')}-"
-        "${d.year} • "
-        "${d.hour.toString().padLeft(2, '0')}:"
-        "${d.minute.toString().padLeft(2, '0')}";
+  String _formatDateTime(dynamic timestamp) {
+    if (timestamp == null) return "";
+
+    if (timestamp is Timestamp) {
+      final d = timestamp.toDate();
+      return "${d.day.toString().padLeft(2, '0')}-"
+          "${d.month.toString().padLeft(2, '0')}-"
+          "${d.year} • "
+          "${d.hour.toString().padLeft(2, '0')}:"
+          "${d.minute.toString().padLeft(2, '0')}";
+    }
+
+    if (timestamp is int) {
+      final d = DateTime.fromMillisecondsSinceEpoch(timestamp);
+      return "${d.day.toString().padLeft(2, '0')}-"
+          "${d.month.toString().padLeft(2, '0')}-"
+          "${d.year} • "
+          "${d.hour.toString().padLeft(2, '0')}:"
+          "${d.minute.toString().padLeft(2, '0')}";
+    }
+
+    return "";
   }
 
   // ================= SAFE IMAGE =================
@@ -47,7 +62,6 @@ class HomeScreen extends StatelessWidget {
     if (imageData == null) return const SizedBox();
 
     try {
-      // Base64 image
       if (imageData is String &&
           !imageData.startsWith("/data/") &&
           !imageData.startsWith("file:")) {
@@ -60,7 +74,6 @@ class HomeScreen extends StatelessWidget {
         );
       }
 
-      // Old file path image
       if (imageData is String) {
         final file = File(imageData);
 
@@ -71,60 +84,11 @@ class HomeScreen extends StatelessWidget {
             width: double.infinity,
             fit: BoxFit.cover,
           );
-        } else {
-          return const SizedBox(); // 🔥 Prevent crash
         }
       }
-    } catch (_) {
-      return const SizedBox();
-    }
+    } catch (_) {}
 
     return const SizedBox();
-  }
-
-
-  // ================= AI BADGE =================
-
-  Widget _buildAIBadge(Map<String, dynamic>? ai) {
-    if (ai == null) return const SizedBox();
-
-    final double confidence =
-    (ai["imageConfidence"] ?? 0.0).toDouble();
-
-    final bool verified =
-        ai["aiVerified"] ?? false;
-
-    return Container(
-      margin: const EdgeInsets.only(top: 6),
-      padding:
-      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: verified
-            ? Colors.green.withOpacity(0.1)
-            : Colors.orange.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            verified ? Icons.verified : Icons.smart_toy,
-            size: 14,
-            color: verified ? Colors.green : Colors.orange,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            "${(confidence * 100).toStringAsFixed(0)}% AI confidence",
-            style: TextStyle(
-              fontSize: 11,
-              color: verified
-                  ? Colors.green
-                  : Colors.orange,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   // ================= INDIA EARTHQUAKES =================
@@ -220,9 +184,6 @@ class HomeScreen extends StatelessWidget {
                     final data =
                     doc.data() as Map<String, dynamic>;
 
-                    final ai =
-                    data["aiAnalysis"] as Map<String, dynamic>?;
-
                     return Card(
                       margin: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
@@ -242,16 +203,14 @@ class HomeScreen extends StatelessWidget {
                             child: Row(
                               children: [
                                 const Icon(
-                                  Icons
-                                      .warning_amber_rounded,
+                                  Icons.warning_amber_rounded,
                                   color: Colors.red,
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
-                                    CrossAxisAlignment
-                                        .start,
+                                    CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         data["type"] ??
@@ -259,14 +218,12 @@ class HomeScreen extends StatelessWidget {
                                         style:
                                         const TextStyle(
                                           fontWeight:
-                                          FontWeight
-                                              .bold,
+                                          FontWeight.bold,
                                         ),
                                       ),
                                       Text(
                                         _formatDateTime(
-                                            data[
-                                            "createdAt"]),
+                                            data["createdAt"]),
                                         style:
                                         const TextStyle(
                                           fontSize: 12,
@@ -274,14 +231,12 @@ class HomeScreen extends StatelessWidget {
                                           Colors.grey,
                                         ),
                                       ),
-                                      _buildAIBadge(ai),
                                     ],
                                   ),
                                 ),
                                 Container(
                                   padding:
-                                  const EdgeInsets
-                                      .symmetric(
+                                  const EdgeInsets.symmetric(
                                     horizontal: 10,
                                     vertical: 4,
                                   ),
@@ -293,9 +248,7 @@ class HomeScreen extends StatelessWidget {
                                           .toInt(),
                                     ),
                                     borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                        20),
+                                    BorderRadius.circular(20),
                                   ),
                                   child: Text(
                                     "S${data["severity"]}",
@@ -317,22 +270,21 @@ class HomeScreen extends StatelessWidget {
                                   .isNotEmpty)
                             ClipRRect(
                               borderRadius:
-                              BorderRadius
-                                  .circular(14),
+                              BorderRadius.circular(14),
                               child: _buildImage(
                                   data["images"][0]),
                             ),
 
+                          // DESCRIPTION
                           Padding(
-                            padding:
-                            const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(12),
                             child: Text(
-                                data["description"] ??
-                                    ""),
+                                data["description"] ?? ""),
                           ),
 
                           const Divider(height: 1),
 
+                          // ACTIONS
                           Padding(
                             padding:
                             const EdgeInsets.symmetric(
@@ -341,8 +293,7 @@ class HomeScreen extends StatelessWidget {
                               children: [
                                 TextButton.icon(
                                   icon: const Icon(
-                                      Icons
-                                          .map_outlined),
+                                      Icons.map_outlined),
                                   label: const Text(
                                       "Location"),
                                   onPressed: () {
@@ -367,8 +318,7 @@ class HomeScreen extends StatelessWidget {
                                 ),
                                 TextButton.icon(
                                   icon: const Icon(
-                                      Icons
-                                          .forum_outlined),
+                                      Icons.forum_outlined),
                                   label:
                                   const Text(
                                       "Details"),
@@ -425,7 +375,6 @@ class HomeScreen extends StatelessWidget {
                 return Column(
                   children: [
 
-                    // 🔥 VIEW ON MAP BUTTON (NaturalMapScreen now used)
                     Padding(
                       padding: const EdgeInsets.all(12),
                       child: SizedBox(
@@ -448,7 +397,6 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
 
-                    // 📋 LIST
                     Expanded(
                       child: ListView.builder(
                         itemCount: data.length,
