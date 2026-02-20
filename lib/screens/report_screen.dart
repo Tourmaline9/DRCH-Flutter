@@ -91,6 +91,52 @@ class _ReportScreenState extends State<ReportScreen> {
         .showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  // ================= SUBMIT =================
+
+  Future<void> _submitReport() async {
+    if (_type == null ||
+        _descController.text.trim().isEmpty ||
+        _lat == null ||
+        _lng == null ||
+        _images.isEmpty) {
+      _show("Please complete all fields including photo");
+      return;
+    }
+
+    setState(() => _submitting = true);
+
+    try {
+      await _service.addReport(
+        type: _type!,
+        description: _descController.text.trim(),
+        severity: _severity,
+        images: _images,
+        lat: _lat!,
+        lng: _lng!,
+        aiAnalysis: {}, // AI handled internally in ReportService
+      );
+
+      _show("Report submitted successfully");
+
+      widget.onReportSubmitted();
+
+      // Optional: reset form
+      setState(() {
+        _type = null;
+        _severity = 3;
+        _lat = null;
+        _lng = null;
+        _images.clear();
+        _descController.clear();
+      });
+
+    } catch (e) {
+      _show("Failed to submit report");
+    }
+
+    setState(() => _submitting = false);
+  }
+
   // ================= UI =================
 
   @override
@@ -101,7 +147,7 @@ class _ReportScreenState extends State<ReportScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
 
-          // ================= HEADER =================
+          // HEADER
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
@@ -139,7 +185,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
           const SizedBox(height: 24),
 
-          // ================= TYPE =================
+          // TYPE
           Text(
             "Incident Type",
             style: Theme.of(context).textTheme.titleMedium,
@@ -164,7 +210,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
           const SizedBox(height: 22),
 
-          // ================= DESCRIPTION =================
+          // DESCRIPTION
           Text(
             "Description",
             style: Theme.of(context).textTheme.titleMedium,
@@ -187,11 +233,10 @@ class _ReportScreenState extends State<ReportScreen> {
 
           const SizedBox(height: 22),
 
-          // ================= MEDIA & LOCATION =================
+          // MEDIA & LOCATION
           Row(
             children: [
 
-              // CAMERA
               Expanded(
                 child: OutlinedButton.icon(
                   icon: Icon(
@@ -213,7 +258,6 @@ class _ReportScreenState extends State<ReportScreen> {
 
               const SizedBox(width: 12),
 
-              // LOCATION
               Expanded(
                 child: OutlinedButton.icon(
                   icon: Icon(
@@ -234,7 +278,6 @@ class _ReportScreenState extends State<ReportScreen> {
             ],
           ),
 
-          // IMAGE PREVIEW
           if (_images.isNotEmpty) ...[
             const SizedBox(height: 12),
             SizedBox(
@@ -260,28 +303,9 @@ class _ReportScreenState extends State<ReportScreen> {
             ),
           ],
 
-          const SizedBox(height: 26),
-
-          // ================= SEVERITY =================
-          Text(
-            "Severity",
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-
-          Slider(
-            value: _severity,
-            min: 1,
-            max: 5,
-            divisions: 4,
-            label: _severity.toInt().toString(),
-            onChanged: (v) {
-              setState(() => _severity = v);
-            },
-          ),
-
           const SizedBox(height: 32),
 
-          // ================= SUBMIT =================
+          // SUBMIT
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -305,39 +329,8 @@ class _ReportScreenState extends State<ReportScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              onPressed: _submitting
-                  ? null
-                  : () async {
-
-                if (_type == null ||
-                    _descController.text.isEmpty ||
-                    _lat == null ||
-                    _lng == null) {
-                  _show("Please complete all fields");
-                  return;
-                }
-
-                setState(() => _submitting = true);
-
-                try {
-                  await _service.addReport(
-                    type: _type!,
-                    description:
-                    _descController.text.trim(),
-                    severity: _severity,
-                    images: _images,
-                    lat: _lat!,
-                    lng: _lng!,
-                  );
-
-                  _show("Report submitted");
-                  widget.onReportSubmitted();
-                } catch (e) {
-                  _show(e.toString());
-                }
-
-                setState(() => _submitting = false);
-              },
+              onPressed:
+              _submitting ? null : _submitReport,
             ),
           ),
         ],
