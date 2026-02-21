@@ -92,6 +92,21 @@ class _MapScreenState extends State<MapScreen> {
 
   // ---------------- HELPERS ----------------
 
+  double? _distanceKm() {
+    if (_userLocation == null || _disasterLocation == null) {
+      return null;
+    }
+
+    final meters = Geolocator.distanceBetween(
+      _userLocation!.latitude,
+      _userLocation!.longitude,
+      _disasterLocation!.latitude,
+      _disasterLocation!.longitude,
+    );
+
+    return meters / 1000;
+  }
+
   double? _toDouble(dynamic value) {
     if (value == null) return null;
     if (value is double) return value;
@@ -138,8 +153,16 @@ class _MapScreenState extends State<MapScreen> {
             userAgentPackageName: 'com.example.untitled',
           ),
 
-
-
+          if (_userLocation != null)
+            PolylineLayer(
+              polylines: [
+                Polyline(
+                  points: [_userLocation!, _disasterLocation!],
+                  strokeWidth: 4,
+                  color: Colors.blue,
+                ),
+              ],
+            ),
 
           // 🔴 200M RADIUS CIRCLE
           CircleLayer(
@@ -188,9 +211,38 @@ class _MapScreenState extends State<MapScreen> {
         ],
       ),
 
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.my_location),
-        onPressed: _centerMap,
+      floatingActionButtonLocation:
+          FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (_distanceKm() != null)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Text(
+                "Distance to disaster: ${_distanceKm()!.toStringAsFixed(2)} km",
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          FloatingActionButton(
+            child: const Icon(Icons.my_location),
+            onPressed: _centerMap,
+          ),
+        ],
       ),
     );
   }

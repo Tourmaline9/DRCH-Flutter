@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_services.dart';
-import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -57,15 +56,8 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
 
-      // ✅ NAVIGATE AFTER SUCCESS
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const HomeScreen(),
-          ),
-        );
-      }
+      // AuthGate at app root listens to authStateChanges and
+      // automatically routes authenticated users into MainScaffold.
 
     } catch (e) {
       _show(e.toString());
