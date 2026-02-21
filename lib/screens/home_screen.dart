@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
+import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'natural_map_screen.dart';
 import '../widgets/loading_state.dart';
@@ -113,6 +115,58 @@ class HomeScreen extends StatelessWidget {
       final lat = coords[1];
       return lat >= 6 && lat <= 37 && lon >= 68 && lon <= 97;
     }).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  Future<void> _navigateToReportedDisaster(
+    BuildContext context, {
+    required dynamic lat,
+    required dynamic lng,
+  }) async {
+    final destLat = _toDouble(lat);
+    final destLng = _toDouble(lng);
+
+    if (destLat == null || destLng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Location not available")),
+      );
+      return;
+    }
+
+    String url =
+        'https://www.google.com/maps/dir/?api=1&destination=$destLat,$destLng&travelmode=driving';
+
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission != LocationPermission.denied &&
+          permission != LocationPermission.deniedForever) {
+        final pos = await Geolocator.getCurrentPosition();
+        url =
+            'https://www.google.com/maps/dir/?api=1&origin=${pos.latitude},${pos.longitude}&destination=$destLat,$destLng&travelmode=driving';
+      }
+    } catch (_) {
+      // If user location fails, continue with destination-only directions.
+    }
+
+    final uri = Uri.parse(url);
+
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Could not open navigation")),
+      );
+    }
   }
 
   // ================= UI =================
@@ -318,6 +372,19 @@ class HomeScreen extends StatelessWidget {
                                 ),
                                 TextButton.icon(
                                   icon: const Icon(
+                                      Icons.navigation_outlined),
+                                  label: const Text(
+                                      "Navigate"),
+                                  onPressed: () {
+                                    _navigateToReportedDisaster(
+                                      context,
+                                      lat: data["lat"],
+                                      lng: data["lng"],
+                                    );
+                                  },
+                                ),
+                                TextButton.icon(
+                                  icon: const Icon(
                                       Icons.forum_outlined),
                                   label:
                                   const Text(
@@ -436,6 +503,26 @@ class HomeScreen extends StatelessWidget {
                                     ),
                                   ),
                                 ],
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.map_outlined),
+                                tooltip: "Open route map",
+                                onPressed: () {
+                                  final coords =
+                                      data[i]["geometry"]?["coordinates"];
+
+                                  if (coords is List && coords.length >= 2) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => MapScreen(
+                                          lat: (coords[1] as num?)?.toDouble(),
+                                          lng: (coords[0] as num?)?.toDouble(),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
                               ),
                             ),
                           );
