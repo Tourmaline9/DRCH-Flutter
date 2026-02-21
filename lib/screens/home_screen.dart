@@ -125,6 +125,35 @@ class HomeScreen extends StatelessWidget {
     return null;
   }
 
+  Future<String?> _resolveCity(double lat, double lng) async {
+    final uri = Uri.parse(
+      "https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=$lat&lon=$lng&zoom=10&addressdetails=1",
+    );
+
+    final res = await http.get(
+      uri,
+      headers: const {
+        "User-Agent": "DRCH/1.0 (disaster-navigation)",
+      },
+    );
+
+    if (res.statusCode != 200) return null;
+
+    final body = json.decode(res.body) as Map<String, dynamic>;
+    final address = body["address"] as Map<String, dynamic>?;
+
+    if (address == null) return null;
+
+    final city =
+        address["city"] ?? address["town"] ?? address["village"] ?? address["county"];
+
+    if (city is String && city.trim().isNotEmpty) {
+      return city.trim().toLowerCase();
+    }
+
+    return null;
+  }
+
   Future<void> _navigateToReportedDisaster(
     BuildContext context, {
     required dynamic lat,
@@ -140,33 +169,62 @@ class HomeScreen extends StatelessWidget {
       return;
     }
 
-    String url =
-        'https://www.google.com/maps/dir/?api=1&destination=$destLat,$destLng&travelmode=driving';
-
     try {
       final permission = await Geolocator.checkPermission();
-      if (permission != LocationPermission.denied &&
-          permission != LocationPermission.deniedForever) {
-        final pos = await Geolocator.getCurrentPosition();
-        url =
-            'https://www.google.com/maps/dir/?api=1&origin=${pos.latitude},${pos.longitude}&destination=$destLat,$destLng&travelmode=driving';
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Enable location to start navigation"),
+            ),
+          );
+        }
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition();
+
+      final userCity = await _resolveCity(pos.latitude, pos.longitude);
+      final disasterCity = await _resolveCity(destLat, destLng);
+
+      if (userCity == null || disasterCity == null || userCity != disasterCity) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "Navigation is available only when you are in the same city as the reported disaster",
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      final uri = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&origin=${pos.latitude},${pos.longitude}&destination=$destLat,$destLng&travelmode=driving',
+      );
+
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not open navigation")),
+        );
       }
     } catch (_) {
-      // If user location fails, continue with destination-only directions.
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Unable to start navigation")),
+        );
+      }
     }
 
-    final uri = Uri.parse(url);
+    return;
 
-    final launched = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
-
-    if (!launched && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Could not open navigation")),
-      );
-    }
   }
 
   // ================= UI =================
@@ -503,26 +561,6 @@ class HomeScreen extends StatelessWidget {
                                     ),
                                   ),
                                 ],
-                              ),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.map_outlined),
-                                tooltip: "Open route map",
-                                onPressed: () {
-                                  final coords =
-                                      data[i]["geometry"]?["coordinates"];
-
-                                  if (coords is List && coords.length >= 2) {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => MapScreen(
-                                          lat: (coords[1] as num?)?.toDouble(),
-                                          lng: (coords[0] as num?)?.toDouble(),
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
                               ),
                             ),
                           );
