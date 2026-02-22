@@ -152,10 +152,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onPressed: _uploading ? null : _uploadAadhar,
                 icon: _uploading
                     ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Icon(Icons.badge_outlined),
                 label: Text(aadharSubmitted ? 'Re-upload Aadhar' : 'Upload Aadhar'),
               ),

@@ -138,10 +138,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         items: _roles
                             .map(
                               (role) => DropdownMenuItem<String>(
-                            value: role["value"],
-                            child: Text(role["label"]!),
-                          ),
-                        )
+                                value: role["value"],
+                                child: Text(role["label"]!),
+                              ),
+                            )
                             .toList(),
                         onChanged: (value) {
                           if (value == null) return;

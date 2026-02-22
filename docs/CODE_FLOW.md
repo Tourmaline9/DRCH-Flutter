@@ -14,19 +14,19 @@ This document explains the current end-to-end behavior of the app.
 
 ## 3) Main app shell
 - `MainScaffold` is a 4-tab container with an `IndexedStack`:
-    1. Home
-    2. Nearby
-    3. Report
-    4. Verify
+  1. Home
+  2. Nearby
+  3. Report
+  4. Verify
 - Report submission callback switches tab index to Verify so users can immediately inspect verification state.
 
 ## 4) Report creation flow
 - `ReportScreen` collects incident type, description, camera photo, and GPS location.
 - It calls `ReportService.addReport(...)`.
 - `ReportService`:
-    - compresses images
-    - stores report in Firestore with `verified=false`, `votes=[]`, `requiredVotes=3`
-    - starts background AI analysis (`_runAiInBackground`)
+  - compresses images
+  - stores report in Firestore with `verified=false`, `votes=[]`, `requiredVotes=3`
+  - starts background AI analysis (`_runAiInBackground`)
 
 ## 5) AI verification flow
 - `AiVerificationService` sends first image + prompt to Gemini.
@@ -36,17 +36,17 @@ This document explains the current end-to-end behavior of the app.
 ## 6) Human verification flow
 - `VerifyScreen` streams unverified reports.
 - `ReportService.vote(reportId)`:
-    - blocks self-verification
-    - blocks duplicate votes
-    - requires location services + permission
-    - requires user to be within 200 meters of the report location
-    - marks report `verified=true` once vote count reaches `requiredVotes`
+  - blocks self-verification
+  - blocks duplicate votes
+  - requires location services + permission
+  - requires user to be within 200 meters of the report location
+  - marks report `verified=true` once vote count reaches `requiredVotes`
 
 ## 7) Viewing reports
 - `HomeScreen` streams verified reports and displays cards/details/maps.
 - Images are handled in a dual-path way:
-    - base64 string (Firestore)
-    - local file path fallback
+  - base64 string (Firestore)
+  - local file path fallback
 
 ## Important current caveats
 - `AiVerificationService` currently contains a hardcoded API key; this should be moved to a secure secret/config mechanism.

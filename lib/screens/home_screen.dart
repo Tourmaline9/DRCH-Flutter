@@ -155,10 +155,10 @@ class HomeScreen extends StatelessWidget {
   }
 
   Future<void> _navigateToReportedDisaster(
-      BuildContext context, {
-        required dynamic lat,
-        required dynamic lng,
-      }) async {
+    BuildContext context, {
+    required dynamic lat,
+    required dynamic lng,
+  }) async {
     final destLat = _toDouble(lat);
     final destLng = _toDouble(lng);
 

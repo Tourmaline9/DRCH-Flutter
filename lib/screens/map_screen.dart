@@ -217,12 +217,53 @@ class _MapScreenState extends State<MapScreen> {
               ),
               children: [
 
-                // 🗺️ Map Tiles
-                TileLayer(
-                  urlTemplate:
-                  "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                  userAgentPackageName: 'com.example.untitled',
+          // 🗺️ Map Tiles
+          TileLayer(
+            urlTemplate:
+            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            userAgentPackageName: 'com.example.untitled',
+          ),
+
+          if (_userLocation != null)
+            PolylineLayer(
+              polylines: [
+                Polyline(
+                  points: [_userLocation!, _disasterLocation!],
+                  strokeWidth: 4,
+                  color: Colors.blue,
                 ),
+              ],
+            ),
+
+          // 🔴 200M RADIUS CIRCLE
+                CircleLayer(
+                  circles: [
+                    CircleMarker(
+                      point: _disasterLocation!,
+                      radius: 200, // 200 meters
+                      useRadiusInMeter: true,
+                      color: _disasterColor().withOpacity(0.2),
+                      borderColor: _disasterColor(),
+                      borderStrokeWidth: 2,
+                    ),
+                  ],
+                ),
+
+          // 📍 MARKERS
+          MarkerLayer(
+            markers: [
+
+              // 🚨 Disaster marker
+                    Marker(
+                      point: _disasterLocation!,
+                      width: 40,
+                      height: 40,
+                      child: Icon(
+                        Icons.location_pin,
+                        color: _disasterColor(),
+                        size: 40,
+                      ),
+                    ),
 
                 if (_userLocation != null)
                   PolylineLayer(
@@ -279,6 +320,8 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                   ],
                 ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -286,7 +329,7 @@ class _MapScreenState extends State<MapScreen> {
       ),
 
       floatingActionButtonLocation:
-      FloatingActionButtonLocation.endFloat,
+          FloatingActionButtonLocation.endFloat,
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -295,7 +338,7 @@ class _MapScreenState extends State<MapScreen> {
             Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(10),
