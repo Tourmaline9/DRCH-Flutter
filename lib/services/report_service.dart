@@ -67,6 +67,7 @@ class ReportService {
       "lng": lng,
       "images": base64Images,
       "verified": false,
+      "verifiedByRole": null,
       "requiredVotes": 3,
       "votes": [],
       "authorId": _uid,
@@ -159,6 +160,12 @@ class ReportService {
     }
 
     final ref = _db.collection("reports").doc(reportId);
+    final userDoc = await _db.collection("users").doc(_uid).get();
+    final String userRole = (userDoc.data()?['role'] ?? 'community')
+        .toString()
+        .toLowerCase();
+    final bool isAuthorityReviewer =
+        userRole == 'ngo' || userRole == 'govt_authority';
 
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw "Location services are disabled";
@@ -220,10 +227,13 @@ class ReportService {
 
       votes.add(_uid);
 
+      final bool verifiedByVotes = votes.length >= requiredVotes;
+      final bool verified = isAuthorityReviewer || verifiedByVotes;
+
       tx.update(ref, {
         "votes": votes,
-        "verified":
-        votes.length >= requiredVotes,
+        "verified": verified,
+        "verifiedByRole": isAuthorityReviewer ? userRole : data["verifiedByRole"],
       });
     });
   }
