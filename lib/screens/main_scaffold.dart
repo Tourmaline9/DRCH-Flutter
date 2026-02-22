@@ -5,6 +5,7 @@ import 'home_screen.dart';
 import 'nearby_screen.dart';
 import 'report_screen.dart';
 import 'verify_screen.dart';
+import 'profile_screen.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -87,6 +88,17 @@ class _MainScaffoldState extends State<MainScaffold> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ProfileScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,

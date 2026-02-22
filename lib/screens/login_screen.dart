@@ -54,6 +54,8 @@ class _LoginScreenState extends State<LoginScreen> {
             "name": _nameController.text.trim(),
             "email": user.email,
             "role": _selectedRole,
+            "aadharSubmitted": false,
+            "aadharStatus": "not_submitted",
             "createdAt": DateTime.now().millisecondsSinceEpoch,
           });
         }
