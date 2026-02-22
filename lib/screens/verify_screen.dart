@@ -254,7 +254,11 @@ class VerifyScreen extends StatelessWidget {
         FirebaseFirestore.instance
             .collection("reports")
             .doc(doc.id)
-            .delete();
+            .delete()
+            .catchError((_) {
+          // Some roles may not have delete permissions based on
+          // Firestore rules. Ignore silently to prevent UI crashes.
+        });
       });
     }
   }
@@ -521,6 +525,7 @@ class VerifyScreen extends StatelessWidget {
                                       "lat"],
                                       lng: data[
                                       "lng"],
+                                      reportData: data,
                                     ),
                               ),
                             );
@@ -561,9 +566,15 @@ class VerifyScreen extends StatelessWidget {
                               return;
                             }
 
-                            await service
-                                .vote(
-                                doc.id);
+                            try {
+                              await service.vote(doc.id);
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(e.toString())),
+                                );
+                              }
+                            }
                           },
                         ),
                       ],
