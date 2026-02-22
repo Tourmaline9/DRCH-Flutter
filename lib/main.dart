@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'auth_gate.dart';
 
 import 'firebase_options.dart';
-import 'screens/main_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

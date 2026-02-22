@@ -125,17 +125,17 @@ class VerifyScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
 
-          // Confidence Badge
+          // Match Score Badge (primary signal)
           Row(
             children: [
               Icon(
-                Icons.smart_toy,
+                Icons.fact_check_outlined,
                 color: confidenceColor,
                 size: 18,
               ),
               const SizedBox(width: 6),
               Text(
-                "${(confidence * 100).toStringAsFixed(1)}% AI Confidence",
+                "Match Score: $matchScore / 10",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: confidenceColor,
@@ -164,9 +164,9 @@ class VerifyScreen extends StatelessWidget {
 
           const SizedBox(height: 8),
 
-          // Match Score
+          // AI Confidence (secondary signal)
           Text(
-            "Match Score: $matchScore / 10",
+            "AI Confidence: ${(confidence * 100).toStringAsFixed(1)}%",
             style: const TextStyle(fontSize: 12),
           ),
 
@@ -254,7 +254,11 @@ class VerifyScreen extends StatelessWidget {
         FirebaseFirestore.instance
             .collection("reports")
             .doc(doc.id)
-            .delete();
+            .delete()
+            .catchError((_) {
+          // Some roles may not have delete permissions based on
+          // Firestore rules. Ignore silently to prevent UI crashes.
+        });
       });
     }
   }
@@ -521,6 +525,7 @@ class VerifyScreen extends StatelessWidget {
                                       "lat"],
                                       lng: data[
                                       "lng"],
+                                      reportData: data,
                                     ),
                               ),
                             );
@@ -561,9 +566,15 @@ class VerifyScreen extends StatelessWidget {
                               return;
                             }
 
-                            await service
-                                .vote(
-                                doc.id);
+                            try {
+                              await service.vote(doc.id);
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(e.toString())),
+                                );
+                              }
+                            }
                           },
                         ),
                       ],
