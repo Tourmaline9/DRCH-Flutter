@@ -6,11 +6,13 @@ import 'package:geolocator/geolocator.dart';
 class MapScreen extends StatefulWidget {
   final dynamic lat;
   final dynamic lng;
+  final Map<String, dynamic>? reportData;
 
   const MapScreen({
     super.key,
     required this.lat,
     required this.lng,
+    this.reportData,
   });
 
   @override
@@ -24,6 +26,55 @@ class _MapScreenState extends State<MapScreen> {
   LatLng? _disasterLocation;
 
   bool _loading = true;
+
+  bool get _communityVerified => widget.reportData?["verified"] == true;
+
+  bool get _authorityVerified {
+    final role = (widget.reportData?["verifiedByRole"] ?? "")
+        .toString()
+        .toLowerCase();
+    return role == "ngo" || role == "govt_authority";
+  }
+
+  bool get _aiSuspicious {
+    final ai = widget.reportData?["aiAnalysis"];
+    if (ai is! Map<String, dynamic>) return false;
+
+    final isDisaster = ai["is_disaster"];
+    final int matchScore = (ai["match_score"] ?? 0).toInt();
+    final String alertType = (ai["alert_type"] ?? "").toString().toLowerCase();
+
+    if (isDisaster == false) return true;
+    if (matchScore < 5) return true;
+    if (alertType.contains("suspicious")) return true;
+    return false;
+  }
+
+  int get _aiScore {
+    final ai = widget.reportData?["aiAnalysis"];
+    if (ai is! Map<String, dynamic>) return 0;
+    return (ai["match_score"] ?? 0).toInt();
+  }
+
+  Color _disasterColor() {
+    if (_authorityVerified) return Colors.red;
+    if (_aiSuspicious) return Colors.deepPurple;
+    if (_communityVerified && _aiScore > 8) return Colors.red;
+    if (_communityVerified && _aiScore < 8) return Colors.yellow.shade700;
+    return Colors.orange;
+  }
+
+  String _statusLabel() {
+    if (_authorityVerified) return "Authority verified";
+    if (_aiSuspicious) return "Suspicious (awaiting NGO/authority verification)";
+    if (_communityVerified && _aiScore > 8) {
+      return "High risk: AI > 8 + community verified";
+    }
+    if (_communityVerified && _aiScore < 8) {
+      return "Moderate risk: AI < 8 + community verified";
+    }
+    return "Pending verification";
+  }
 
   @override
   void initState() {
@@ -138,13 +189,33 @@ class _MapScreenState extends State<MapScreen> {
       appBar: AppBar(
         title: const Text("Disaster Location"),
       ),
-      body: FlutterMap(
-        mapController: _mapController,
-        options: MapOptions(
-          initialCenter: _disasterLocation!,
-          initialZoom: 15,
-        ),
+      body: Column(
         children: [
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _disasterColor().withOpacity(0.14),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _disasterColor()),
+            ),
+            child: Text(
+              _statusLabel(),
+              style: TextStyle(
+                color: _disasterColor(),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: _disasterLocation!,
+                initialZoom: 15,
+              ),
+              children: [
 
           // 🗺️ Map Tiles
           TileLayer(
@@ -165,34 +236,34 @@ class _MapScreenState extends State<MapScreen> {
             ),
 
           // 🔴 200M RADIUS CIRCLE
-          CircleLayer(
-            circles: [
-              CircleMarker(
-                point: _disasterLocation!,
-                radius: 200, // 200 meters
-                useRadiusInMeter: true,
-                color: Colors.red.withOpacity(0.2),
-                borderColor: Colors.red,
-                borderStrokeWidth: 2,
-              ),
-            ],
-          ),
+                CircleLayer(
+                  circles: [
+                    CircleMarker(
+                      point: _disasterLocation!,
+                      radius: 200, // 200 meters
+                      useRadiusInMeter: true,
+                      color: _disasterColor().withOpacity(0.2),
+                      borderColor: _disasterColor(),
+                      borderStrokeWidth: 2,
+                    ),
+                  ],
+                ),
 
           // 📍 MARKERS
           MarkerLayer(
             markers: [
 
               // 🚨 Disaster marker
-              Marker(
-                point: _disasterLocation!,
-                width: 40,
-                height: 40,
-                child: const Icon(
-                  Icons.location_pin,
-                  color: Colors.red,
-                  size: 40,
-                ),
-              ),
+                    Marker(
+                      point: _disasterLocation!,
+                      width: 40,
+                      height: 40,
+                      child: Icon(
+                        Icons.location_pin,
+                        color: _disasterColor(),
+                        size: 40,
+                      ),
+                    ),
 
               // 👤 User marker
               if (_userLocation != null)
@@ -206,7 +277,10 @@ class _MapScreenState extends State<MapScreen> {
                     size: 35,
                   ),
                 ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),

@@ -521,6 +521,7 @@ class VerifyScreen extends StatelessWidget {
                                       "lat"],
                                       lng: data[
                                       "lng"],
+                                      reportData: data,
                                     ),
                               ),
                             );
