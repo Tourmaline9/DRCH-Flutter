@@ -125,17 +125,17 @@ class VerifyScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
 
-          // Confidence Badge
+          // Match Score Badge (primary signal)
           Row(
             children: [
               Icon(
-                Icons.smart_toy,
+                Icons.fact_check_outlined,
                 color: confidenceColor,
                 size: 18,
               ),
               const SizedBox(width: 6),
               Text(
-                "${(confidence * 100).toStringAsFixed(1)}% AI Confidence",
+                "Match Score: $matchScore / 10",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: confidenceColor,
@@ -164,9 +164,9 @@ class VerifyScreen extends StatelessWidget {
 
           const SizedBox(height: 8),
 
-          // Match Score
+          // AI Confidence (secondary signal)
           Text(
-            "Match Score: $matchScore / 10",
+            "AI Confidence: ${(confidence * 100).toStringAsFixed(1)}%",
             style: const TextStyle(fontSize: 12),
           ),
 
