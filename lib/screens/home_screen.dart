@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
+import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'natural_map_screen.dart';
 import '../widgets/loading_state.dart';
@@ -113,6 +115,116 @@ class HomeScreen extends StatelessWidget {
       final lat = coords[1];
       return lat >= 6 && lat <= 37 && lon >= 68 && lon <= 97;
     }).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  Future<String?> _resolveCity(double lat, double lng) async {
+    final uri = Uri.parse(
+      "https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=$lat&lon=$lng&zoom=10&addressdetails=1",
+    );
+
+    final res = await http.get(
+      uri,
+      headers: const {
+        "User-Agent": "DRCH/1.0 (disaster-navigation)",
+      },
+    );
+
+    if (res.statusCode != 200) return null;
+
+    final body = json.decode(res.body) as Map<String, dynamic>;
+    final address = body["address"] as Map<String, dynamic>?;
+
+    if (address == null) return null;
+
+    final city =
+        address["city"] ?? address["town"] ?? address["village"] ?? address["county"];
+
+    if (city is String && city.trim().isNotEmpty) {
+      return city.trim().toLowerCase();
+    }
+
+    return null;
+  }
+
+  Future<void> _navigateToReportedDisaster(
+    BuildContext context, {
+    required dynamic lat,
+    required dynamic lng,
+  }) async {
+    final destLat = _toDouble(lat);
+    final destLng = _toDouble(lng);
+
+    if (destLat == null || destLng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Location not available")),
+      );
+      return;
+    }
+
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Enable location to start navigation"),
+            ),
+          );
+        }
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition();
+
+      final userCity = await _resolveCity(pos.latitude, pos.longitude);
+      final disasterCity = await _resolveCity(destLat, destLng);
+
+      if (userCity == null || disasterCity == null || userCity != disasterCity) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "Navigation is available only when you are in the same city as the reported disaster",
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      final uri = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&origin=${pos.latitude},${pos.longitude}&destination=$destLat,$destLng&travelmode=driving',
+      );
+
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not open navigation")),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Unable to start navigation")),
+        );
+      }
+    }
+
+    return;
+
   }
 
   // ================= UI =================
@@ -311,8 +423,22 @@ class HomeScreen extends StatelessWidget {
                                               "lat"],
                                               lng: data[
                                               "lng"],
+                                              reportData: data,
                                             ),
                                       ),
+                                    );
+                                  },
+                                ),
+                                TextButton.icon(
+                                  icon: const Icon(
+                                      Icons.navigation_outlined),
+                                  label: const Text(
+                                      "Navigate"),
+                                  onPressed: () {
+                                    _navigateToReportedDisaster(
+                                      context,
+                                      lat: data["lat"],
+                                      lng: data["lng"],
                                     );
                                   },
                                 ),
