@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_services.dart';
-import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +18,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _loading = false;
   bool _isSignup = false;
+  String _selectedRole = "community";
+
+  static const List<Map<String, String>> _roles = [
+    {"value": "community", "label": "Community / Volunteer"},
+    {"value": "ngo", "label": "NGO"},
+    {"value": "govt_authority", "label": "Govt authority"},
+  ];
 
   Future<void> _submit() async {
     if (_passwordController.text.length < 6) {
@@ -47,6 +53,9 @@ class _LoginScreenState extends State<LoginScreen> {
               .set({
             "name": _nameController.text.trim(),
             "email": user.email,
+            "role": _selectedRole,
+            "aadharSubmitted": false,
+            "aadharStatus": "not_submitted",
             "createdAt": DateTime.now().millisecondsSinceEpoch,
           });
         }
@@ -57,15 +66,8 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
 
-      // ✅ NAVIGATE AFTER SUCCESS
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const HomeScreen(),
-          ),
-        );
-      }
+      // AuthGate at app root listens to authStateChanges and
+      // automatically routes authenticated users into MainScaffold.
 
     } catch (e) {
       _show(e.toString());
@@ -122,6 +124,29 @@ class _LoginScreenState extends State<LoginScreen> {
                         controller: _nameController,
                         label: "Full Name",
                         icon: Icons.person,
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: _selectedRole,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.badge_outlined),
+                          labelText: "Login type",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        items: _roles
+                            .map(
+                              (role) => DropdownMenuItem<String>(
+                            value: role["value"],
+                            child: Text(role["label"]!),
+                          ),
+                        )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() => _selectedRole = value);
+                        },
                       ),
                       const SizedBox(height: 16),
                     ],

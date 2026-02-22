@@ -1,84 +1,90 @@
 import 'package:flutter/material.dart';
 import '../services/natural_disaster_service.dart';
-import '../models/earthquake_model.dart';
+import '../models/disaster_model.dart';
 import 'map_screen.dart';
 
 class NaturalDisasterScreen extends StatelessWidget {
   const NaturalDisasterScreen({super.key});
 
-  String _formatTime(int millis) {
-    final d = DateTime.fromMillisecondsSinceEpoch(millis);
-    return "${d.day}/${d.month}/${d.year} "
-        "${d.hour}:${d.minute.toString().padLeft(2, '0')}";
+  Color _typeColor(String type) {
+    final t = type.toLowerCase();
+    if (t.contains("earthquake")) return Colors.red;
+    if (t.contains("flood")) return Colors.blue;
+    if (t.contains("wildfire")) return Colors.orange;
+    if (t.contains("storm")) return Colors.purple;
+    // ... and so on
+    return Colors.teal;
   }
-
-  Color _magColor(double mag) {
-    if (mag >= 5) return Colors.red;
-    if (mag >= 3) return Colors.orange;
-    return Colors.green;
-  }
-
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Earthquake>>(
-      future: NaturalDisasterService().fetchEarthquakes(),
+    return FutureBuilder<List<Disaster>>(
+      future: NaturalDisasterService()
+          .fetchAllIndiaDisasters(),
       builder: (context, snapshot) {
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(),
-          );
+              child: CircularProgressIndicator());
         }
 
         if (snapshot.hasError) {
           return const Center(
-            child: Text("Failed to load natural disasters"),
-          );
+              child: Text("Failed to load disasters"));
         }
 
-        final quakes = snapshot.data!;
+        final disasters = snapshot.data!;
 
-        if (quakes.isEmpty) {
+        if (disasters.isEmpty) {
           return const Center(
-            child: Text("No recent natural disasters in India"),
-          );
+              child: Text("No active disasters in India"));
         }
 
         return ListView.builder(
-          itemCount: quakes.length,
+          itemCount: disasters.length,
           itemBuilder: (context, i) {
-            final q = quakes[i];
+            final d = disasters[i];
 
             return Card(
               margin: const EdgeInsets.all(12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius:
+                BorderRadius.circular(16),
               ),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: _magColor(q.magnitude),
-                  child: Text(
-                    q.magnitude.toStringAsFixed(1),
-                    style: const TextStyle(
+                  backgroundColor:
+                  _typeColor(d.type),
+                  child: d.magnitude != null
+                      ? Text(
+                    d.magnitude!
+                        .toStringAsFixed(1),
+                    style:
+                    const TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                      fontWeight:
+                      FontWeight.bold,
                     ),
+                  )
+                      : const Icon(
+                    Icons.warning,
+                    color: Colors.white,
                   ),
                 ),
-                title: Text(q.place),
+                title: Text(d.title),
                 subtitle: Text(
-                  "Time: ${_formatTime(q.time)}",
-                ),
+                    "${d.type}\n${d.date.toLocal()}"),
                 trailing: IconButton(
-                  icon: const Icon(Icons.map),
+                  icon:
+                  const Icon(Icons.map),
                   onPressed: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => MapScreen(
-                          lat: q.lat,
-                          lng: q.lng,
-                        ),
+                        builder: (_) =>
+                            MapScreen(
+                              lat: d.lat,
+                              lng: d.lng,
+                            ),
                       ),
                     );
                   },
