@@ -265,17 +265,60 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                     ),
 
-              // 👤 User marker
-              if (_userLocation != null)
-                Marker(
-                  point: _userLocation!,
-                  width: 35,
-                  height: 35,
-                  child: const Icon(
-                    Icons.person_pin_circle,
-                    color: Colors.blue,
-                    size: 35,
+                if (_userLocation != null)
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: [_userLocation!, _disasterLocation!],
+                        strokeWidth: 4,
+                        color: Colors.blue,
+                      ),
+                    ],
                   ),
+
+                // 🔴 200M RADIUS CIRCLE
+                CircleLayer(
+                  circles: [
+                    CircleMarker(
+                      point: _disasterLocation!,
+                      radius: 200, // 200 meters
+                      useRadiusInMeter: true,
+                      color: _disasterColor().withOpacity(0.2),
+                      borderColor: _disasterColor(),
+                      borderStrokeWidth: 2,
+                    ),
+                  ],
+                ),
+
+                // 📍 MARKERS
+                MarkerLayer(
+                  markers: [
+
+                    // 🚨 Disaster marker
+                    Marker(
+                      point: _disasterLocation!,
+                      width: 40,
+                      height: 40,
+                      child: Icon(
+                        Icons.location_pin,
+                        color: _disasterColor(),
+                        size: 40,
+                      ),
+                    ),
+
+                    // 👤 User marker
+                    if (_userLocation != null)
+                      Marker(
+                        point: _userLocation!,
+                        width: 35,
+                        height: 35,
+                        child: const Icon(
+                          Icons.person_pin_circle,
+                          color: Colors.blue,
+                          size: 35,
+                        ),
+                      ),
+                  ],
                 ),
                   ],
                 ),
