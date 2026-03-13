@@ -1,56 +1,23 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'home_screen.dart';
 import 'nearby_screen.dart';
+import 'profile_screen.dart';
 import 'report_screen.dart';
 import 'verify_screen.dart';
-import 'profile_screen.dart';
 
-class MainScaffold extends StatefulWidget {
+final mainTabIndexProvider = StateProvider<int>((ref) => 0);
+
+class MainScaffold extends ConsumerWidget {
   const MainScaffold({super.key});
-
-  @override
-  State<MainScaffold> createState() => _MainScaffoldState();
-}
-
-class _MainScaffoldState extends State<MainScaffold> {
-  int _index = 0;
-
-  late final List<Widget> _screens;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _screens = [
-      const HomeScreen(),
-      const NearbyScreen(),
-
-      // 🔥 Pass callback to Report
-      ReportScreen(
-        onReportSubmitted: () {
-          setState(() {
-            _index = 3; // Go to Verify
-          });
-        },
-      ),
-
-      const VerifyScreen(),
-    ];
-  }
 
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
   }
 
-  BottomNavigationBarItem _navItem(
-      IconData icon,
-      String label,
-      int index,
-      ) {
-    final bool selected = _index == index;
-
+  BottomNavigationBarItem _navItem(IconData icon, String label, bool selected) {
     return BottomNavigationBarItem(
       label: label,
       icon: AnimatedScale(
@@ -62,30 +29,33 @@ class _MainScaffoldState extends State<MainScaffold> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final index = ref.watch(mainTabIndexProvider);
+    final screens = [
+      const HomeScreen(),
+      const NearbyScreen(),
+      ReportScreen(
+        onReportSubmitted: () => ref.read(mainTabIndexProvider.notifier).state = 3,
+      ),
+      const VerifyScreen(),
+    ];
+
     return Scaffold(
-      // ================= APP BAR =================
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                Color(0xFFD32F2F),
-                Color(0xFFB71C1C),
-              ],
+              colors: [Color(0xFFD32F2F), Color(0xFFB71C1C)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
         ),
         title: const Text(
-          "DRCH",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.2,
-          ),
+          'DRCH',
+          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
         ),
         actions: [
           IconButton(
@@ -93,41 +63,25 @@ class _MainScaffoldState extends State<MainScaffold> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const ProfileScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
               );
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-          ),
+          IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
         ],
       ),
-
-      // ================= BODY =================
-      body: IndexedStack(
-        index: _index,
-        children: _screens,
-      ),
-
-      // ================= BOTTOM NAV =================
+      body: IndexedStack(index: index, children: screens),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        currentIndex: _index,
+        currentIndex: index,
         selectedItemColor: Colors.red,
         unselectedItemColor: Colors.grey,
-        onTap: (i) {
-          setState(() {
-            _index = i;
-          });
-        },
+        onTap: (i) => ref.read(mainTabIndexProvider.notifier).state = i,
         items: [
-          _navItem(Icons.home, "Home", 0),
-          _navItem(Icons.map, "Nearby", 1),
-          _navItem(Icons.add_circle, "Report", 2),
-          _navItem(Icons.verified, "Verify", 3),
+          _navItem(Icons.home, 'Home', index == 0),
+          _navItem(Icons.map, 'Nearby', index == 1),
+          _navItem(Icons.add_circle, 'Report', index == 2),
+          _navItem(Icons.verified, 'Verify', index == 3),
         ],
       ),
     );
