@@ -231,6 +231,10 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                       ))
                   .toList(),
             ),
+            onPressed: state.submitting ? null : _submitReport,
+            child: state.submitting
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text('Submit Report', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
         ],
         const SizedBox(height: 32),
