@@ -49,7 +49,6 @@ class ReportFormNotifier extends StateNotifier<ReportFormState> {
   ReportFormNotifier() : super(const ReportFormState());
 
   void setType(String value) => state = state.copyWith(type: value);
-  void setSeverity(double value) => state = state.copyWith(severity: value);
   void setLocation(double lat, double lng) => state = state.copyWith(lat: lat, lng: lng);
   void addImage(File image) => state = state.copyWith(images: [...state.images, image]);
   void setSubmitting(bool value) => state = state.copyWith(submitting: value);
@@ -143,27 +142,6 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  Widget _statusTile({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Column(
-      children: [
-        Icon(icon, size: 18, color: Colors.red.shade400),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 11, color: Colors.black54)),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-      ],
-    );
-  }
-
   @override
   void dispose() {
     _descController.dispose();
@@ -203,62 +181,6 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                     onSelected: (_) => ref.read(reportFormProvider.notifier).setType(e),
                   ))
               .toList(),
-        ),
-        const SizedBox(height: 22),
-        Text('Severity Level', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 10),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.orange.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.orange.withOpacity(0.35)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.speed, color: Colors.deepOrange),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Current Severity: ${state.severity.toStringAsFixed(0)} / 5',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-              Slider(
-                min: 1,
-                max: 5,
-                divisions: 4,
-                label: state.severity.toStringAsFixed(0),
-                value: state.severity,
-                onChanged: (value) => ref.read(reportFormProvider.notifier).setSeverity(value),
-              ),
-              Wrap(
-                spacing: 8,
-                children: List.generate(5, (index) => index + 1)
-                    .map(
-                      (level) => ChoiceChip(
-                        label: Text('S$level'),
-                        selected: state.severity.toInt() == level,
-                        onSelected: (_) => ref.read(reportFormProvider.notifier).setSeverity(level.toDouble()),
-                      ),
-                    )
-                    .toList(),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                state.severity >= 4
-                    ? 'High urgency: immediate response required.'
-                    : state.severity >= 3
-                        ? 'Moderate urgency: monitor and assist quickly.'
-                        : 'Low urgency: report noted for community awareness.',
-                style: const TextStyle(fontSize: 12, color: Colors.black87),
-              ),
-            ],
-          ),
         ),
         const SizedBox(height: 22),
         Text('Description', style: Theme.of(context).textTheme.titleMedium),
@@ -309,44 +231,13 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                       ))
                   .toList(),
             ),
+            onPressed: state.submitting ? null : _submitReport,
+            child: state.submitting
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text('Submit Report', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
         ],
-        const SizedBox(height: 18),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: _statusTile(
-                  icon: Icons.category_outlined,
-                  label: 'Type',
-                  value: state.type ?? 'Not selected',
-                ),
-              ),
-              Expanded(
-                child: _statusTile(
-                  icon: Icons.photo_camera_outlined,
-                  label: 'Photos',
-                  value: '${state.images.length}',
-                ),
-              ),
-              Expanded(
-                child: _statusTile(
-                  icon: Icons.location_on_outlined,
-                  label: 'Location',
-                  value: state.lat == null ? 'Missing' : 'Added',
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 32),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
