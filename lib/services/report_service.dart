@@ -121,8 +121,8 @@ class ReportService {
       (aiResult["match_score"] ?? 0).toInt();
 
       final bool isFlagged =
-          aiResult["is_flagged"] == true ||
-              aiResult["possible_screenshot"] == true;
+      aiResult["is_flagged"] == true ||
+          aiResult["possible_screenshot"] == true;
 
       if (isFlagged) {
         requiredVotes = 5;

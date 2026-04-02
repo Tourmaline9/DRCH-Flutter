@@ -160,13 +160,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: loading
                           ? const Center(child: CircularProgressIndicator())
                           : ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFD3190D),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: _submit,
-                        child: Text(isSignup ? 'Create account' : 'Sign in'),
-                      ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD3190D),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: _submit,
+                              child: Text(isSignup ? 'Create account' : 'Sign in'),
+                            ),
                     ),
                     TextButton(
                       onPressed: () => ref.read(loginSignupProvider.notifier).state = !isSignup,

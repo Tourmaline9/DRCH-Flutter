@@ -7,7 +7,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../services/report_service.dart';
 
-/// ---------------- STATE ----------------
 class ReportFormState {
   final String? type;
   final double severity;
@@ -32,39 +31,34 @@ class ReportFormState {
     double? lng,
     List<File>? images,
     bool? submitting,
+    bool clearType = false,
+    bool clearLocation = false,
   }) {
     return ReportFormState(
-      type: type ?? this.type,
+      type: clearType ? null : (type ?? this.type),
       severity: severity ?? this.severity,
-      lat: lat ?? this.lat,
-      lng: lng ?? this.lng,
+      lat: clearLocation ? null : (lat ?? this.lat),
+      lng: clearLocation ? null : (lng ?? this.lng),
       images: images ?? this.images,
       submitting: submitting ?? this.submitting,
     );
   }
 }
 
-/// ---------------- NOTIFIER ----------------
 class ReportFormNotifier extends StateNotifier<ReportFormState> {
   ReportFormNotifier() : super(const ReportFormState());
 
   void setType(String value) => state = state.copyWith(type: value);
-  void setLocation(double lat, double lng) =>
-      state = state.copyWith(lat: lat, lng: lng);
-  void addImage(File image) =>
-      state = state.copyWith(images: [...state.images, image]);
-  void setSeverity(double value) =>
-      state = state.copyWith(severity: value);
-  void setSubmitting(bool value) =>
-      state = state.copyWith(submitting: value);
+  void setLocation(double lat, double lng) => state = state.copyWith(lat: lat, lng: lng);
+  void addImage(File image) => state = state.copyWith(images: [...state.images, image]);
+  void setSubmitting(bool value) => state = state.copyWith(submitting: value);
   void reset() => state = const ReportFormState();
 }
 
-final reportFormProvider =
-StateNotifierProvider.autoDispose<ReportFormNotifier, ReportFormState>(
-        (ref) => ReportFormNotifier());
+final reportFormProvider = StateNotifierProvider.autoDispose<ReportFormNotifier, ReportFormState>((ref) {
+  return ReportFormNotifier();
+});
 
-/// ---------------- UI ----------------
 class ReportScreen extends ConsumerStatefulWidget {
   final VoidCallback onReportSubmitted;
 
@@ -80,32 +74,49 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   final _picker = ImagePicker();
 
   Future<void> _pickImage() async {
-    final file = await _picker.pickImage(source: ImageSource.camera);
-    if (file != null) {
-      ref.read(reportFormProvider.notifier).addImage(File(file.path));
+    try {
+      final file = await _picker.pickImage(source: ImageSource.camera);
+      if (file != null) {
+        ref.read(reportFormProvider.notifier).addImage(File(file.path));
+      }
+    } catch (_) {
+      _show('Camera permission required');
     }
   }
 
   Future<void> _getLocation() async {
-    final pos = await Geolocator.getCurrentPosition();
-    ref
-        .read(reportFormProvider.notifier)
-        .setLocation(pos.latitude, pos.longitude);
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        _show('Location service is disabled');
+        return;
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        _show('Location permission required');
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition();
+      ref.read(reportFormProvider.notifier).setLocation(pos.latitude, pos.longitude);
+    } catch (_) {
+      _show('Unable to get location');
+    }
   }
 
   Future<void> _submitReport() async {
     final state = ref.read(reportFormProvider);
-
     if (state.type == null ||
         _descController.text.trim().isEmpty ||
         state.lat == null ||
+        state.lng == null ||
         state.images.isEmpty) {
-      _show('Please complete all fields');
+      _show('Please complete all fields including photo');
       return;
     }
 
     ref.read(reportFormProvider.notifier).setSubmitting(true);
-
     try {
       await _service.addReport(
         type: state.type!,
@@ -116,7 +127,6 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         lng: state.lng!,
         aiAnalysis: {},
       );
-
       _show('Report submitted successfully');
       widget.onReportSubmitted();
       ref.read(reportFormProvider.notifier).reset();

@@ -13,14 +13,14 @@ final nearbyMarkersProvider = FutureProvider.autoDispose<List<Marker>>((ref) asy
   return snapshot.docs
       .where((doc) => doc.data()['lat'] != null && doc.data()['lng'] != null)
       .map((doc) {
-    final data = doc.data();
-    return Marker(
-      width: 40,
-      height: 40,
-      point: LatLng((data['lat'] as num).toDouble(), (data['lng'] as num).toDouble()),
-      child: const Icon(Icons.location_pin, color: Colors.red, size: 40),
-    );
-  })
+        final data = doc.data();
+        return Marker(
+          width: 40,
+          height: 40,
+          point: LatLng((data['lat'] as num).toDouble(), (data['lng'] as num).toDouble()),
+          child: const Icon(Icons.location_pin, color: Colors.red, size: 40),
+        );
+      })
       .toList();
 });
 

@@ -15,6 +15,7 @@ class AiVerificationService {
     return false;
   }
 
+  // TODO: Move API key to secure server/env before production release.
   static const String _apiKey = 'AIzaSyCpVlCjRhyOnaVmnH2MybRzjvI_yuS1OY0';
 
   final GenerativeModel _model = GenerativeModel(
@@ -81,9 +82,9 @@ JSON format:
       final jsonString = raw.substring(jsonStart, jsonEnd + 1);
       final Map<String, dynamic> parsed = jsonDecode(jsonString);
       final mismatchPoints = (parsed['mismatch_points'] as List?)
-          ?.map((e) => e.toString())
-          .where((e) => e.trim().isNotEmpty)
-          .toList() ??
+              ?.map((e) => e.toString())
+              .where((e) => e.trim().isNotEmpty)
+              .toList() ??
           <String>[];
 
       return {

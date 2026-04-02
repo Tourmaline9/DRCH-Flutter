@@ -93,10 +93,10 @@ class VerifyScreen extends StatelessWidget {
     }
 
     final double confidence =
-    (ai["confidence"] ?? 0).toDouble();
+        (ai["confidence"] ?? 0).toDouble();
 
     final int matchScore =
-    (ai["match_score"] ?? 0).toInt();
+        (ai["match_score"] ?? 0).toInt();
 
     final String summary =
         ai["ai_summary"] ?? "No summary";
@@ -107,11 +107,11 @@ class VerifyScreen extends StatelessWidget {
     final bool isScreenshot = ai["possible_screenshot"] == true;
     final bool isFlagged = ai["is_flagged"] == true || isScreenshot;
     final String flagReason =
-    (ai["flag_reason"] ?? "No specific flag reason provided.")
-        .toString();
+        (ai["flag_reason"] ?? "No specific flag reason provided.")
+            .toString();
     final String explanation =
-    (ai["explanation"] ?? "No detailed explanation provided.")
-        .toString();
+        (ai["explanation"] ?? "No detailed explanation provided.")
+            .toString();
     final List<dynamic> mismatchPointsRaw =
         (ai["mismatch_points"] as List?) ?? [];
     final List<String> mismatchPoints = mismatchPointsRaw
