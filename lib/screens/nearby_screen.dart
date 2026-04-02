@@ -1,134 +1,52 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../services/report_service.dart';
+final nearbyMarkersProvider = FutureProvider.autoDispose<List<Marker>>((ref) async {
+  final snapshot = await FirebaseFirestore.instance
+      .collection('reports')
+      .where('verified', isEqualTo: true)
+      .get();
 
-class NearbyScreen extends StatefulWidget {
+  return snapshot.docs
+      .where((doc) => doc.data()['lat'] != null && doc.data()['lng'] != null)
+      .map((doc) {
+        final data = doc.data();
+        return Marker(
+          width: 40,
+          height: 40,
+          point: LatLng((data['lat'] as num).toDouble(), (data['lng'] as num).toDouble()),
+          child: const Icon(Icons.location_pin, color: Colors.red, size: 40),
+        );
+      })
+      .toList();
+});
+
+class NearbyScreen extends ConsumerWidget {
   const NearbyScreen({super.key});
 
   @override
-  State<NearbyScreen> createState() => _NearbyScreenState();
-}
-
-class _NearbyScreenState extends State<NearbyScreen> {
-
-  final ReportService _service = ReportService();
-
-  final MapController _mapController = MapController();
-
-  List<Marker> _markers = [];
-
-  // Default: Delhi
-  LatLng _center = const LatLng(28.6139, 77.2090);
-
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMarkers();
-  }
-
-  // ---------------- LOAD MARKERS ----------------
-  Future<void> _loadMarkers() async {
-
-    try {
-
-      // Get verified reports once
-      final snapshot = await FirebaseFirestore.instance
-          .collection("reports")
-          .where("verified", isEqualTo: true)
-          .get();
-
-      final List<Marker> temp = [];
-
-      for (var doc in snapshot.docs) {
-
-        final data = doc.data();
-
-        if (data["lat"] != null && data["lng"] != null) {
-
-          final double lat = data["lat"].toDouble();
-          final double lng = data["lng"].toDouble();
-
-          final pos = LatLng(lat, lng);
-
-          temp.add(
-            Marker(
-              width: 40,
-              height: 40,
-
-              point: pos,
-
-              child: const Icon(
-                Icons.location_pin,
-                color: Colors.red,
-                size: 40,
-              ),
-            ),
-          );
-        }
-      }
-
-      if (!mounted) return;
-
-      setState(() {
-        _markers = temp;
-        _loading = false;
-      });
-
-    } catch (e) {
-
-      if (!mounted) return;
-
-      setState(() {
-        _loading = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
-    }
-  }
-
-  // ---------------- UI ----------------
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    const center = LatLng(28.6139, 77.2090);
+    final markersAsync = ref.watch(nearbyMarkersProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Nearby Disasters"),
-      ),
-
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : FlutterMap(
-
-        mapController: _mapController,
-
-        options: MapOptions(
-          initialCenter: _center,
-          initialZoom: 12,
+      appBar: AppBar(title: const Text('Nearby Disasters')),
+      body: markersAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(child: Text('Error: $error')),
+        data: (markers) => FlutterMap(
+          options: const MapOptions(initialCenter: center, initialZoom: 12),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.example.untitled',
+            ),
+            MarkerLayer(markers: markers),
+          ],
         ),
-
-        children: [
-
-          // MAP TILES (HOT SERVER - Better)
-          TileLayer(
-            urlTemplate:
-            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            userAgentPackageName: 'com.example.untitled',
-          ),
-
-
-
-          // 📍 MARKERS
-          MarkerLayer(
-            markers: _markers,
-          ),
-        ],
       ),
     );
   }
