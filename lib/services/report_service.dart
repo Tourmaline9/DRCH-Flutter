@@ -120,7 +120,13 @@ class ReportService {
       final int matchScore =
       (aiResult["match_score"] ?? 0).toInt();
 
-      if (confidence > 0.9 && matchScore > 8) {
+      final bool isFlagged =
+          aiResult["is_flagged"] == true ||
+              aiResult["possible_screenshot"] == true;
+
+      if (isFlagged) {
+        requiredVotes = 5;
+      } else if (confidence > 0.9 && matchScore > 8) {
         requiredVotes = 2;
       }
 

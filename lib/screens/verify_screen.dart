@@ -104,6 +104,21 @@ class VerifyScreen extends StatelessWidget {
     final String alertType =
         ai["alert_type"] ?? "Unknown";
 
+    final bool isScreenshot = ai["possible_screenshot"] == true;
+    final bool isFlagged = ai["is_flagged"] == true || isScreenshot;
+    final String flagReason =
+    (ai["flag_reason"] ?? "No specific flag reason provided.")
+        .toString();
+    final String explanation =
+    (ai["explanation"] ?? "No detailed explanation provided.")
+        .toString();
+    final List<dynamic> mismatchPointsRaw =
+        (ai["mismatch_points"] as List?) ?? [];
+    final List<String> mismatchPoints = mismatchPointsRaw
+        .map((e) => e.toString())
+        .where((e) => e.trim().isNotEmpty)
+        .toList();
+
     Color confidenceColor;
     if (confidence > 0.85) {
       confidenceColor = Colors.green;
@@ -124,8 +139,24 @@ class VerifyScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
-          // Match Score Badge (primary signal)
+          Row(
+            children: [
+              Icon(
+                isFlagged ? Icons.flag : Icons.verified,
+                color: isFlagged ? Colors.red : Colors.green,
+                size: 18,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                isFlagged ? "AI Flag: YES" : "AI Flag: NO",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isFlagged ? Colors.red : Colors.green,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           Row(
             children: [
               Icon(
@@ -143,50 +174,63 @@ class VerifyScreen extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 8),
-
-          // Alert Type
           Text(
             "Detected Type: $alertType",
             style: const TextStyle(
               fontWeight: FontWeight.w600,
             ),
           ),
-
           const SizedBox(height: 6),
-
-          // AI Summary
-          Text(
-            summary,
-            style: const TextStyle(fontSize: 13),
-          ),
-
+          Text(summary, style: const TextStyle(fontSize: 13)),
           const SizedBox(height: 8),
-
-          // AI Confidence (secondary signal)
           Text(
             "AI Confidence: ${(confidence * 100).toStringAsFixed(1)}%",
             style: const TextStyle(fontSize: 12),
           ),
-
-          // Warning if mismatch
-          if (matchScore < 5)
+          const SizedBox(height: 10),
+          Text(
+            "Why AI marked this${isFlagged ? ' as FLAGGED' : ''}:",
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(flagReason, style: const TextStyle(fontSize: 13)),
+          const SizedBox(height: 6),
+          Text(explanation, style: const TextStyle(fontSize: 12)),
+          if (isScreenshot) ...[
+            const SizedBox(height: 8),
             Container(
-              margin: const EdgeInsets.only(top: 8),
+              width: double.infinity,
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.deepPurple.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text(
-                "⚠ The image does not clearly match the description.",
+                "⚠ Possible screenshot/repost detected. This may not be an original on-ground photo.",
                 style: TextStyle(
-                  color: Colors.red,
+                  color: Colors.deepPurple,
                   fontSize: 12,
                 ),
               ),
             ),
+          ],
+          if (mismatchPoints.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            const Text(
+              "Mismatch signals:",
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            ...mismatchPoints.take(4).map(
+                  (point) => Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Text("• $point", style: const TextStyle(fontSize: 12)),
+              ),
+            ),
+          ],
         ],
       ),
     );
