@@ -1,0 +1,109 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ================= USERS =================
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ================= REPORTS =================
+    match /reports/{reportId} {
+      // ---------- READ ----------
+      allow read: if request.auth != null;
+
+      // ---------- CREATE ----------
+      allow create: if request.auth != null
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.verified == false
+        && request.resource.data.votes is list
+        && request.resource.data.votes.size() == 0;
+
+      // ---------- UPDATE ----------
+      allow update: if request.auth != null && (
+        // Author can edit own report
+        resource.data.authorId == request.auth.uid
+
+        ||
+
+        // Voting/verification/AI updates are limited to these fields only
+        (
+          request.resource.data.diff(resource.data).changedKeys()
+            .hasOnly(['aiAnalysis', 'requiredVotes', 'votes', 'verified', 'verifiedByRole'])
+          && request.resource.data.authorId == resource.data.authorId
+          && request.resource.data.createdAt == resource.data.createdAt
+        )
+      );
+
+      // ---------- DELETE ----------
+      allow delete: if request.auth != null && (
+        // Author can delete own report
+        resource.data.authorId == request.auth.uid
+        ||
+        // Auto-expired unverified cleanup (24h)
+        (
+          resource.data.verified == false
+          && resource.data.createdAt != null
+          && request.time > resource.data.createdAt + duration.value(24, 'h')
+        )
+      );
+
+      // ================= COMMENTS =================
+      match /comments/{commentId} {
+        allow read: if request.auth != null;
+
+        allow create: if request.auth != null
+          && request.resource.data.authorId == request.auth.uid;
+
+        allow update, delete: if request.auth != null
+          && resource.data.authorId == request.auth.uid;
+      }
+
+      // ================= REQUIREMENTS =================
+      match /requirements/{requirementId} {
+        allow read: if request.auth != null;
+
+        // Supports either `authorId` or existing `createdBy` field.
+        allow create: if request.auth != null
+          && (
+            request.resource.data.authorId == request.auth.uid
+            || request.resource.data.createdBy == request.auth.uid
+          );
+
+        allow update, delete: if request.auth != null
+          && (
+            resource.data.authorId == request.auth.uid
+            || resource.data.createdBy == request.auth.uid
+          );
+
+        // ================= CONTRIBUTIONS =================
+        match /contributions/{contributionId} {
+          allow read: if request.auth != null;
+
+          // Supports either `authorId` or existing `uid` field.
+          allow create: if request.auth != null
+            && (
+              request.resource.data.authorId == request.auth.uid
+              || request.resource.data.uid == request.auth.uid
+            );
+
+          allow update: if request.auth != null && (
+            // Owner can edit/delete own contribution
+            resource.data.authorId == request.auth.uid
+            || resource.data.uid == request.auth.uid
+            // Any signed-in user can only update upvotes
+            || request.resource.data.diff(resource.data).changedKeys().hasOnly(['upvotes'])
+          );
+
+          allow delete: if request.auth != null
+            && (
+              resource.data.authorId == request.auth.uid
+              || resource.data.uid == request.auth.uid
+            );
+        }
+      }
+    }
+  }
+}
