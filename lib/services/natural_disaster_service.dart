@@ -10,7 +10,7 @@ class NaturalDisasterService {
 
   static const _eonetUrl = "https://eonet.gsfc.nasa.gov/api/v3/events?days=20";
 
-Future<List<Disaster>> fetchAllIndiaDisasters() async {
+  Future<List<Disaster>> fetchAllIndiaDisasters() async {
     final List<Disaster> disasters = [];
 
     try {
