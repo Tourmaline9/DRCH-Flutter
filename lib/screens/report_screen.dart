@@ -166,10 +166,10 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(reportFormProvider);
     final incidentTypes = [
-      ('Mountain\nOn Fire', Icons.landscape_outlined),
-      ('Forest\nOn Fire', Icons.park_outlined),
-      ('Building\nOn Fire', Icons.apartment_outlined),
-      ('Others', Icons.add),
+      ('Fire', Icons.local_fire_department_outlined),
+      ('Flood', Icons.water_damage_outlined),
+      ('Accident', Icons.car_crash_outlined),
+      ('Other', Icons.add),
     ];
 
     return Scaffold(
@@ -208,10 +208,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                     children: [
                       Icon(Icons.local_fire_department, color: Colors.red),
                       SizedBox(width: 6),
-                      Text(
-                        'FIRE SHIELD',
-                        style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 2),
-                      ),
+                      Text('DRCH ALERT', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                     ],
                   ),
                   const SizedBox(height: 170),
@@ -219,8 +216,11 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('What Happen?', style: TextStyle(fontSize: 28)),
-                        Text('What is on fire select any of these.', style: TextStyle(color: Colors.grey.shade700)),
+                        const Text('What happened?', style: TextStyle(fontSize: 28)),
+                        Text(
+                          'Choose the incident type so nearby users can verify quickly.',
+                          style: TextStyle(color: Colors.grey.shade700),
+                        ),
                         const SizedBox(height: 12),
                         Row(
                           children: incidentTypes
@@ -229,12 +229,12 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                                   child: GestureDetector(
                                     onTap: () => ref
                                         .read(reportFormProvider.notifier)
-                                        .setType(incident.$1.replaceAll('\n', ' ')),
+                                        .setType(incident.$1),
                                     child: Container(
                                       margin: const EdgeInsets.symmetric(horizontal: 4),
                                       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
                                       decoration: BoxDecoration(
-                                        color: state.type == incident.$1.replaceAll('\n', ' ')
+                                        color: state.type == incident.$1
                                             ? const Color(0xffffecec)
                                             : const Color(0xfff1f3f6),
                                         borderRadius: BorderRadius.circular(12),
@@ -261,7 +261,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                           width: double.infinity,
                           child: OutlinedButton.icon(
                             icon: const Icon(Icons.camera_alt, color: Colors.red),
-                            label: const Text('Can you take some pictures?'),
+                            label: const Text('Add incident photos'),
                             onPressed: _pickImage,
                           ),
                         ),
@@ -300,7 +300,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                           controller: _descController,
                           maxLines: 3,
                           decoration: const InputDecoration(
-                            hintText: 'Explain us more (Optional)',
+                            hintText: 'Add details (required)',
                             border: InputBorder.none,
                           ),
                         ),
@@ -353,7 +353,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                             child: state.submitting
                                 ? const CircularProgressIndicator(color: Colors.white)
                                 : const Text(
-                                    'Send Fire Report',
+                                    'Submit Incident Report',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
