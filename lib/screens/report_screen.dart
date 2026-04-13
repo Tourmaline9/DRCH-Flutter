@@ -49,6 +49,7 @@ class ReportFormNotifier extends StateNotifier<ReportFormState> {
   ReportFormNotifier() : super(const ReportFormState());
 
   void setType(String value) => state = state.copyWith(type: value);
+  void setSeverity(double value) => state = state.copyWith(severity: value);
   void setLocation(double lat, double lng) => state = state.copyWith(lat: lat, lng: lng);
   void addImage(File image) => state = state.copyWith(images: [...state.images, image]);
   void setSubmitting(bool value) => state = state.copyWith(submitting: value);
@@ -72,6 +73,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   final _service = ReportService();
   final _descController = TextEditingController();
   final _picker = ImagePicker();
+  bool _injured = false;
 
   Future<void> _pickImage() async {
     try {
@@ -125,7 +127,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         images: state.images,
         lat: state.lat!,
         lng: state.lng!,
-        aiAnalysis: {},
+        aiAnalysis: {
+          'injured': _injured,
+        },
       );
       _show('Report submitted successfully');
       widget.onReportSubmitted();
@@ -138,33 +142,19 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     }
   }
 
-  void _show(String msg) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-
-  Color _severityColor(double val) {
-    if (val <= 2) return Colors.green;
-    if (val <= 3) return Colors.orange;
-    return Colors.red;
-  }
-
-  String _severityText(double val) {
-    if (val <= 2) return "Low";
-    if (val <= 3) return "Moderate";
-    if (val <= 4) return "High";
-    return "Critical";
-  }
+  void _show(String msg) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
   Widget _card(Widget child) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
           )
         ],
       ),
@@ -175,198 +165,210 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(reportFormProvider);
+    final incidentTypes = [
+      ('Fire', Icons.local_fire_department_outlined),
+      ('Flood', Icons.water_damage_outlined),
+      ('Accident', Icons.car_crash_outlined),
+      ('Other', Icons.add),
+    ];
 
     return Scaffold(
-      backgroundColor: const Color(0xfff5f6fa),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            /// HEADER
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xffFF416C), Color(0xffFF4B2B)],
-                ),
-                borderRadius: BorderRadius.circular(24),
+      body: Stack(
+        children: [
+          Container(
+            height: 330,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xffe7eef8), Color(0xffd8e8f7)],
               ),
-              child: const Row(
+            ),
+          ),
+          Positioned(
+            top: 80,
+            right: -40,
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                color: Colors.lightBlue.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
                 children: [
-                  Icon(Icons.report, color: Colors.white, size: 28),
-                  SizedBox(width: 10),
-                  Text(
-                    "Report Incident",
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold),
+                  const SizedBox(height: 8),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.local_fire_department, color: Colors.red),
+                      SizedBox(width: 6),
+                      Text('DRCH ALERT', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                    ],
+                  ),
+                  const SizedBox(height: 170),
+                  _card(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('What happened?', style: TextStyle(fontSize: 28)),
+                        Text(
+                          'Choose the incident type so nearby users can verify quickly.',
+                          style: TextStyle(color: Colors.grey.shade700),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: incidentTypes
+                              .map(
+                                (incident) => Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => ref
+                                        .read(reportFormProvider.notifier)
+                                        .setType(incident.$1),
+                                    child: Container(
+                                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                                      decoration: BoxDecoration(
+                                        color: state.type == incident.$1
+                                            ? const Color(0xffffecec)
+                                            : const Color(0xfff1f3f6),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Icon(incident.$2, color: Colors.black87),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            incident.$1,
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(fontSize: 12, height: 1.1),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.camera_alt, color: Colors.red),
+                            label: const Text('Add incident photos'),
+                            onPressed: _pickImage,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _card(
+                    Row(
+                      children: [
+                        const Icon(Icons.health_and_safety_outlined),
+                        const SizedBox(width: 8),
+                        const Text('Any injured?', style: TextStyle(fontSize: 17)),
+                        const Spacer(),
+                        ChoiceChip(
+                          label: const Text('Yes'),
+                          selected: _injured,
+                          onSelected: (_) => setState(() => _injured = true),
+                          selectedColor: Colors.green,
+                          labelStyle: TextStyle(color: _injured ? Colors.white : null),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: const Text('No'),
+                          selected: !_injured,
+                          onSelected: (_) => setState(() => _injured = false),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _card(
+                    Column(
+                      children: [
+                        TextField(
+                          controller: _descController,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            hintText: 'Add details (required)',
+                            border: InputBorder.none,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.location_on_outlined),
+                            label: Text(state.lat == null ? 'Use my location' : 'Location captured'),
+                            onPressed: _getLocation,
+                          ),
+                        ),
+                        if (state.images.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            height: 70,
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              children: state.images
+                                  .map((e) => Padding(
+                                        padding: const EdgeInsets.only(right: 8),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(10),
+                                          child: Image.file(e, width: 70, fit: BoxFit.cover),
+                                        ),
+                                      ))
+                                  .toList(),
+                            ),
+                          ),
+                        ],
+                        Slider(
+                          value: state.severity,
+                          min: 1,
+                          max: 5,
+                          divisions: 4,
+                          activeColor: Colors.red,
+                          onChanged: (v) => ref.read(reportFormProvider.notifier).setSeverity(v),
+                        ),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: state.submitting ? null : _submitReport,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              backgroundColor: Colors.red,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: state.submitting
+                                ? const CircularProgressIndicator(color: Colors.white)
+                                : const Text(
+                                    'Submit Incident Report',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 24),
-
-            /// INCIDENT TYPE
-            Text("Incident Type",
-                style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                  fontWeight: FontWeight.bold,
-                )),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 10,
-              children: ['Fire', 'Flood', 'Accident', 'Earthquake']
-                  .map((e) => ChoiceChip(
-                label: Text(e),
-                selected: state.type == e,
-                selectedColor: Colors.red.shade100,
-                onSelected: (_) =>
-                    ref.read(reportFormProvider.notifier).setType(e),
-              ))
-                  .toList(),
-            ),
-
-            const SizedBox(height: 20),
-
-            /// DESCRIPTION
-            _card(Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.description, color: Colors.red),
-                    const SizedBox(width: 8),
-                    Text("Description",
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium!
-                            .copyWith(fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _descController,
-                  maxLines: 5,
-                  decoration: const InputDecoration(
-                    hintText: "Describe what’s happening in detail...",
-                    border: InputBorder.none,
-                  ),
-                ),
-              ],
-            )),
-
-            const SizedBox(height: 20),
-
-            /// SEVERITY
-            _card(Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                    const SizedBox(width: 8),
-                    Text("Severity Level",
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium!
-                            .copyWith(fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text("Low"),
-                    Text(
-                      _severityText(state.severity),
-                      style: TextStyle(
-                          color: _severityColor(state.severity),
-                          fontWeight: FontWeight.bold),
-                    ),
-                    const Text("Critical"),
-                  ],
-                ),
-                Slider(
-                  value: state.severity,
-                  min: 1,
-                  max: 5,
-                  divisions: 4,
-                  activeColor: _severityColor(state.severity),
-                  onChanged: (v) =>
-                      ref.read(reportFormProvider.notifier).setSeverity(v),
-                ),
-              ],
-            )),
-
-            const SizedBox(height: 20),
-
-            /// ACTION BUTTONS
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text("Photo"),
-                    onPressed: _pickImage,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.location_on),
-                    label: const Text("Location"),
-                    onPressed: _getLocation,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            /// IMAGE PREVIEW
-            if (state.images.isNotEmpty)
-              SizedBox(
-                height: 80,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: state.images
-                      .map((e) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.file(e,
-                          width: 80, fit: BoxFit.cover),
-                    ),
-                  ))
-                      .toList(),
-                ),
-              ),
-
-            const SizedBox(height: 28),
-
-            /// SUBMIT BUTTON
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: state.submitting ? null : _submitReport,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Colors.red,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18)),
-                ),
-                child: state.submitting
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                  "Submit Report",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
